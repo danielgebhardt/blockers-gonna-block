@@ -709,7 +709,8 @@ export class PlayScene extends Phaser.Scene {
     this.hideToast();
     const L = this.L;
     const u = L.u;
-    const c = this.add.container(L.x + L.w / 2, this.oy - this.frame - 26 * u).setDepth(60);
+    // just above the Undo/Hint bar, clear of the board and the gates' colour dots
+    const c = this.add.container(L.x + L.w / 2, L.y + L.h - 92 * u - 34 * u).setDepth(60);
     const t = text(this, 0, 0, msg, 15 * u, UI.text, { wrap: L.w - 60 * u });
     const w = Math.min(L.w - 24 * u, t.width + 32 * u);
     const h = t.height + 18 * u;

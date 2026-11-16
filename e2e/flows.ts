@@ -12,8 +12,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type CDPSession, type Page, chromium, devices } from 'playwright';
 import { build, preview } from 'vite';
-import { type IMove, applyMove, compile, initialState, legalMoves, toMove } from '../src/core/engine';
-import { mulberry32 } from '../src/core/rng';
+import { applyMove, compile, fromMove, initialState, legalMoves, toMove } from '../src/core/engine';
 import { solve } from '../src/core/solver';
 import type { LevelDef, Move, Side } from '../src/core/types';
 
@@ -72,23 +71,21 @@ async function drag(page: Page, cdp: CDPSession, lvl: LevelDef, m: Move) {
   await idle(page);
 }
 
-/** Find a short sequence of legal moves after which the level is unsolvable. */
+/**
+ * Find a trap: follow the optimal solution and, at each step, try every exit
+ * that is available; return the prefix plus the first exit that makes the
+ * level unsolvable (only shifting gates can do this).
+ */
 function findDeadEnd(lvl: LevelDef): Move[] | null {
   const c = compile(lvl);
-  const rng = mulberry32(99);
-  for (let attempt = 0; attempt < 400; attempt++) {
-    let s = initialState(c);
-    const seq: IMove[] = [];
-    for (let k = 0; k < 5; k++) {
-      const moves = legalMoves(c, s);
-      const exits = moves.filter((m) => m.g >= 0);
-      const pool = exits.length && rng() < 0.8 ? exits : moves;
-      const m = pool[Math.floor(rng() * pool.length)];
-      s = applyMove(c, s, m);
-      seq.push(m);
-      const r = solve(c, s, { maxNodes: 200_000 });
-      if (r.solvable === false) return seq.map((x) => toMove(c, x));
+  let s = initialState(c);
+  for (let k = 0; k < lvl.solution.length; k++) {
+    for (const m of legalMoves(c, s)) {
+      if (m.g < 0) continue;
+      if (solve(c, applyMove(c, s, m), { maxNodes: 200_000 }).solvable === false)
+        return [...lvl.solution.slice(0, k), toMove(c, m)];
     }
+    s = applyMove(c, s, fromMove(c, lvl.solution[k]));
   }
   return null;
 }
@@ -142,6 +139,7 @@ async function main() {
       await page.close();
     }
     // --- stuck detection on a shifting-gate level
+    let stuckTested = false;
     for (const lvl of levels.filter((l) => l.set === 6)) {
       const dead = findDeadEnd(lvl);
       if (!dead) continue;
@@ -155,8 +153,10 @@ async function main() {
       await page.waitForTimeout(400);
       check(!(await info(page)).toast, 'undo clears the warning');
       await page.close();
+      stuckTested = true;
       break;
     }
+    check(stuckTested, 'found a shifting-gate level with a dead end to test');
   } catch (e) {
     ok = false;
     console.log('✗ ' + (e as Error).message);

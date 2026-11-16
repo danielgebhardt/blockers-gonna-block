@@ -59,3 +59,26 @@ describe('solver is exact', () => {
     expect(checked).toBeGreaterThan(40);
   }, 120_000);
 });
+
+describe('dead ends', () => {
+  it('only shifting gates can make a solvable level unsolvable (random walks)', () => {
+    const rng = mulberry32(77);
+    const noShift: Spec[] = specs.slice(0, 3);
+    let walks = 0;
+    for (const spec of noShift) {
+      for (let i = 0; i < 12; i++) {
+        const c = compile(construct(rng, spec));
+        if (!solve(c).solvable) continue;
+        let s = initialState(c);
+        for (let k = 0; k < 8; k++) {
+          const ms = legalMoves(c, s);
+          if (!ms.length) break;
+          s = applyMove(c, s, ms[Math.floor(rng() * ms.length)]);
+          expect(solve(c, s).solvable).toBe(true);
+        }
+        walks++;
+      }
+    }
+    expect(walks).toBeGreaterThan(10);
+  });
+});

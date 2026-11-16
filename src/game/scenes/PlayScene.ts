@@ -217,7 +217,7 @@ export class PlayScene extends Phaser.Scene {
       const tx = (gx + 0.5) * this.cs - (b.bw * this.cs) / 2;
       const ty = (gy + 0.5) * this.cs - (b.bh * this.cs) / 2;
       if (!v.ice) {
-        v.ice = text(this, tx, ty, '', this.cs * 0.42, 0x1d4f7a);
+        v.ice = text(this, tx, ty, '', this.cs * 0.34, 0x1d4f7a);
         v.c.add(v.ice);
       }
       v.ice.setText(String(ice)).setPosition(tx, ty).setVisible(true);
@@ -604,8 +604,15 @@ export class PlayScene extends Phaser.Scene {
     return r.moves;
   }
 
+  /**
+   * Dead ends only exist with shifting gates: otherwise every reposition can
+   * be walked back, exits only free space and melt ice, and a peel's landing
+   * spot is reachable from where the block started, so a solvable level stays
+   * solvable whatever you do. No need to spend battery checking.
+   */
   private async checkStuck() {
     const token = ++this.stuckToken;
+    if (!this.session.c.shifting) return;
     const res = await this.solveCurrent();
     if (token !== this.stuckToken || this.session.won) return;
     if (res === null) {
@@ -919,6 +926,15 @@ export class PlayScene extends Phaser.Scene {
           overlay: !!this.overlay,
           pos: Array.from(this.session.state.pos),
           layer: Array.from(this.session.state.layer),
+          stars: starsFor(this.session.moves, this.level.par, this.session.usedUndo, this.session.usedHint),
+          usedUndo: this.session.usedUndo,
+          usedHint: this.session.usedHint,
+          toast: this.toast ? ((this.toast.list[1] as Phaser.GameObjects.Text)?.text ?? '') : '',
+          hintShown: this.hintG.commandBuffer.length > 0,
+          buttons: {
+            undo: [this.undoBtn.x / dpr, this.undoBtn.y / dpr],
+            hint: [this.hintBtn.x / dpr, this.hintBtn.y / dpr],
+          },
         };
       },
       /** Drag path (anchors) for a move from the current state. */

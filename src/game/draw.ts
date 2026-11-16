@@ -178,23 +178,32 @@ function seeded(seed: number) {
 }
 
 function drawIce(g: G, b: BlockLook, cs: number) {
+  // opaque frost tinted by the block colour (translucent overlaps would show seams)
+  const col = COLORS[b.colors[b.layer]];
   const d = cs * 0.03;
-  g.fillStyle(UI.ice, 0.72);
+  g.fillStyle(mix(col.base, UI.ice, 0.62), 1);
   fillUnion(g, b.cells, cs, d, cs * 0.18, 0, 0);
-  g.fillStyle(0xffffff, 0.35);
-  fillUnion(g, b.cells, cs, d + cs * 0.08, cs * 0.12, -cs * 0.02, -cs * 0.03);
+  g.fillStyle(mix(col.base, 0xffffff, 0.82), 1);
+  fillUnion(g, b.cells, cs, d + cs * 0.1, cs * 0.12, -cs * 0.015, -cs * 0.025);
+  g.fillStyle(mix(col.base, UI.ice, 0.5), 1);
+  fillUnion(g, b.cells, cs, d + cs * 0.14, cs * 0.1, cs * 0.01, cs * 0.015);
   const rnd = seeded(b.seed + 7);
-  g.lineStyle(Math.max(1, cs * 0.025), 0xffffff, 0.9);
+  g.lineStyle(Math.max(1, cs * 0.022), 0xffffff, 0.95);
   for (const [x, y] of b.cells) {
-    // frost facets
     for (let k = 0; k < 2; k++) {
-      const px = (x + 0.2 + rnd() * 0.6) * cs;
-      const py = (y + 0.2 + rnd() * 0.6) * cs;
+      const px = (x + 0.22 + rnd() * 0.56) * cs;
+      const py = (y + 0.22 + rnd() * 0.56) * cs;
       const a = rnd() * Math.PI;
-      const l = cs * (0.12 + rnd() * 0.12);
+      const l = cs * (0.1 + rnd() * 0.1);
       g.lineBetween(px - Math.cos(a) * l, py - Math.sin(a) * l, px + Math.cos(a) * l, py + Math.sin(a) * l);
     }
   }
+  const [gx, gy] = centreCell(b.cells);
+  // snowflake badge behind the counter
+  g.fillStyle(0xffffff, 1);
+  g.fillCircle((gx + 0.5) * cs, (gy + 0.5) * cs, cs * 0.25);
+  g.lineStyle(Math.max(1, cs * 0.03), mix(col.dark, UI.ice, 0.3), 1);
+  g.strokeCircle((gx + 0.5) * cs, (gy + 0.5) * cs, cs * 0.25);
 }
 
 /** Board floor, walls and frame (static layer), in board-local coordinates. */
@@ -334,7 +343,7 @@ export function drawGate(g: G, gt: GateLook, w: number, h: number, cs: number, f
   // cycle indicator for shifting gates: dots beyond the frame
   if (gt.colors.length > 1) {
     const n = gt.colors.length;
-    const dr = cs * 0.085;
+    const dr = cs * 0.11;
     const gap = dr * 2.8;
     const total = gap * (n - 1);
     for (let i = 0; i < n; i++) {

@@ -78,7 +78,7 @@ export function climb(slot: Slot, seed: number, iters: number, log = false): Cli
   let cur: Puzzle | null = null;
   let ce: Eval | null = null;
   for (let t = 0; t < 200 && !ce; t++) {
-    cur = pruneGates(construct(rng, spec, true));
+    cur = construct(rng, spec, true);
     ce = evaluate(cur, rng, quick);
   }
   if (!cur || !ce) return null;
@@ -88,7 +88,7 @@ export function climb(slot: Slot, seed: number, iters: number, log = false): Cli
   let bf = cf;
   for (let it = 0; it < iters; it++) {
     const temp = 3 * (1 - it / iters);
-    const cand = pruneGates(mutate(rng, cur, spec));
+    const cand = mutate(rng, cur, spec);
     const e = evaluate(cand, rng, quick);
     if (!e) continue;
     const f = fit(cand, e);
@@ -107,5 +107,6 @@ export function climb(slot: Slot, seed: number, iters: number, log = false): Cli
       }
     }
   }
-  return { puzzle: best, eval: be };
+  // drop gates no block can ever use (they'd be pure decoration)
+  return { puzzle: pruneGates(best), eval: be };
 }

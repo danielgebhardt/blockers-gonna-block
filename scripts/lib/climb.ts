@@ -32,14 +32,14 @@ export function specShortfall(p: Puzzle, spec: Spec): number {
   s += need(p.blocks.length, spec.blocks) * 1.5;
   s += need(c.walls, spec.walls);
   s += need(c.voids, spec.voids);
-  if (spec.walls || spec.voids) s += need(c.walls + c.voids, [1, 99]);
   // use the colours the spec asks for
   const cols = new Set(p.blocks.flatMap((b) => b.colors)).size;
   s += Math.max(0, spec.colors - cols) * 2;
-  s += need(c.oneway, spec.oneway);
-  s += need(c.ice, spec.ice);
-  s += need(c.layered, spec.layered);
-  s += need(c.shifting, spec.shifting);
+  // the set's obstacle must be there: weigh this above any difficulty gain
+  s += need(c.oneway, spec.oneway) * 3;
+  s += need(c.ice, spec.ice) * 3;
+  s += need(c.layered, spec.layered) * 3;
+  s += need(c.shifting, spec.shifting) * 3;
   return s;
 }
 

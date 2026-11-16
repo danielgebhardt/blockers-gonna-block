@@ -88,7 +88,6 @@ export function violations(slot: Slot, c: Candidate): string[] {
   const walls = ob.grid.join('').split('#').length - 1;
   const voids = ob.grid.join('').split(' ').length - 1;
   if (need(walls, slot.spec.walls) || need(voids, slot.spec.voids)) v.push('missing walls/voids');
-  if ((slot.spec.walls || slot.spec.voids) && walls + voids === 0) v.push('no walls/voids');
   return v;
 }
 

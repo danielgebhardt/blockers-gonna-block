@@ -5,3 +5,4 @@ scripts/out/
 .DS_Store
 test-results/
 e2e/shots/
+scripts/gen*.log

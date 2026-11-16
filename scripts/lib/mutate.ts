@@ -260,7 +260,27 @@ const ops: [Op, number][] = [
           else return null;
         } else {
           if (n >= spec.oneway![1]) return null;
-          b.axis = (rng() < 0.5 ? 'h' : 'v') as Axis;
+          // pick an axis with a usable gate on the block's line; else slide the block onto one
+          const axes: Axis[] = rng() < 0.5 ? ['h', 'v'] : ['v', 'h'];
+          let ok = false;
+          for (const ax of axes) {
+            b.axis = ax;
+            if (staticOk(p)) {
+              ok = true;
+              break;
+            }
+          }
+          if (!ok) {
+            const spots = shuffle(rng, spotsFor(p, b.cells, i));
+            for (const [x, y] of spots) {
+              [b.x, b.y] = [x, y];
+              if (staticOk(p)) {
+                ok = true;
+                break;
+              }
+            }
+          }
+          if (!ok) return null;
         }
         if (!b.colors.every((c) => hasFittingGate(p, b.cells, c, b.axis))) return null;
       } else if (what === 'ice') {

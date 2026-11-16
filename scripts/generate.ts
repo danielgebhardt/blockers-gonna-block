@@ -5,6 +5,7 @@
  *   npx tsx scripts/generate.ts --slots 1-5,9   # some slots (global level numbers)
  *   npx tsx scripts/generate.ts --only '^stone-' # slots whose id matches
  *   npx tsx scripts/generate.ts --climbs 12 --select-only
+ *   npx tsx scripts/generate.ts --only '^ice-' --resume   # finish after an interruption
  *
  * For every slot it runs several simulated-annealing climbs in parallel
  * worker threads, fully evaluates each climb's best puzzle (exact par, novice
@@ -61,6 +62,7 @@ function parseArgs() {
     climbs: get('--climbs') ? Number(get('--climbs')) : undefined,
     seed: Number(get('--seed') ?? Date.now() % 100000),
     selectOnly: a.includes('--select-only'),
+    resume: a.includes('--resume'),
     threads: Number(get('--threads') ?? Math.max(1, cpus().length)),
   };
 }
@@ -202,8 +204,13 @@ async function main() {
   if (skipped.length) console.log(`frozen, not touched: ${skipped.join(', ')}`);
 
   if (!args.selectOnly) {
+    // --resume: only run the climbs a slot is still missing (e.g. after a restart)
+    const have = (id: string) => (args.resume ? readJson<Candidate[]>(join(outDir, `cand-${id}.json`), []).length : 0);
     const jobs = slots.flatMap((s) =>
-      Array.from({ length: args.climbs ?? s.climbs }, (_, k) => ({ slot: s.id, seed: args.seed * 1000 + s.index * 37 + k })),
+      Array.from({ length: Math.max(0, (args.climbs ?? s.climbs) - have(s.id)) }, (_, k) => ({
+        slot: s.id,
+        seed: args.seed * 1000 + s.index * 37 + k + have(s.id),
+      })),
     );
     console.log(`${jobs.length} climbs on ${args.threads} threads`);
     await runJobs(jobs, args.threads, (msg) => {

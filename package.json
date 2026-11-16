@@ -1,0 +1,42 @@
+{
+  "name": "blockers-gonna-block",
+  "version": "1.0.0",
+  "description": "Blockers Gonna Block — a sliding colour-block puzzle for Android",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit -p . && vite build",
+    "test": "vitest run",
+    "gen": "tsx scripts/generate.ts",
+    "e2e": "tsx e2e/play.ts",
+    "cap:sync": "cap sync android"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danielgebhardt/blockers-gonna-block.git"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/danielgebhardt/blockers-gonna-block/issues"
+  },
+  "homepage": "https://github.com/danielgebhardt/blockers-gonna-block#readme",
+  "dependencies": {
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.4",
+    "phaser": "^4.2.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@types/node": "^26.6.6",
+    "playwright": "^1.65.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  },
+  "type": "module",
+  "private": true
+}

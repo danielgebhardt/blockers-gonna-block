@@ -1,0 +1,77 @@
+name: Build APK
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test (rules, solver, every shipped level)
+        run: npm test
+
+      - name: Build web app
+        run: npm run build
+
+      # Everything below only on main: that's what produces the installable APK.
+      - uses: actions/setup-java@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+        if: github.ref == 'refs/heads/main'
+
+      - name: Capacitor sync
+        if: github.ref == 'refs/heads/main'
+        run: npx cap sync android
+
+      - name: Assemble debug APK
+        if: github.ref == 'refs/heads/main'
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ../blockers-gonna-block.apk
+
+      - name: Publish "latest" pre-release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          git push origin :refs/tags/latest || true
+          gh release create latest blockers-gonna-block.apk \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Latest build (#${GITHUB_RUN_NUMBER})" \
+            --notes "Debug build ${GITHUB_RUN_NUMBER} from ${GITHUB_SHA::7}. Install over the previous build to keep your progress.
+
+          Direct download: https://github.com/${GITHUB_REPOSITORY}/releases/download/latest/blockers-gonna-block.apk"
+
+      - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          name: blockers-gonna-block-${{ github.run_number }}
+          path: blockers-gonna-block.apk

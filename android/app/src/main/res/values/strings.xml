@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Blockers Gonna Block</string>
+    <string name="title_activity_main">Blockers Gonna Block</string>
+    <string name="package_name">com.danielgebhardt.blockersgonnablock</string>
+    <string name="custom_url_scheme">com.danielgebhardt.blockersgonnablock</string>
+</resources>

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#14172b" />
+    <link rel="icon" href="data:," />
+    <title>Blockers Gonna Block</title>
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; background: #14172b; overflow: hidden;
+        touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+      #game { position: fixed; inset: 0; }
+      #game canvas { display: block; }
+      #safe-probe { position: fixed; visibility: hidden; pointer-events: none; inset: 0;
+        padding-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+        padding-right: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
+        padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+        padding-left: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px)); }
+    </style>
+  </head>
+  <body>
+    <div id="safe-probe"></div>
+    <div id="game"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

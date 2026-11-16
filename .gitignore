@@ -1,0 +1,7 @@
+node_modules/
+dist/
+scripts/out/
+*.log
+.DS_Store
+test-results/
+e2e/shots/

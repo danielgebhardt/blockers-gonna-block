@@ -1,0 +1,70 @@
+import Phaser from 'phaser';
+import { setSound } from './game/audio';
+import { initStatusBar } from './game/platform';
+import { loadSave } from './game/save';
+import { LevelSelectScene } from './game/scenes/LevelSelectScene';
+import { MenuScene } from './game/scenes/MenuScene';
+import { PlayScene } from './game/scenes/PlayScene';
+import { UI, hex } from './game/palette';
+
+async function boot() {
+  await initStatusBar();
+  const sv = await loadSave();
+  setSound(sv.sound);
+
+  // Render at device resolution: canvas = CSS size x dpr, displayed at 1/dpr.
+  const dpr = Math.min(Math.max(window.devicePixelRatio || 1, 1), 3);
+  const cssW = () => window.innerWidth;
+  const cssH = () => window.innerHeight;
+
+  const params = new URLSearchParams(location.search);
+  const startLevel = Number(params.get('level') || 0);
+
+  const game = new Phaser.Game({
+    type: Phaser.WEBGL,
+    parent: 'game',
+    width: Math.round(cssW() * dpr),
+    height: Math.round(cssH() * dpr),
+    backgroundColor: hex(UI.bg),
+    scale: { mode: Phaser.Scale.NONE, zoom: 1 / dpr },
+    render: { antialias: true, antialiasGL: true },
+    input: { activePointers: 1 },
+    banner: false,
+    scene: [MenuScene, LevelSelectScene, PlayScene],
+    callbacks: {
+      preBoot: (g) => {
+        g.registry.set('dpr', dpr);
+        if (startLevel) g.registry.set('startLevel', startLevel);
+      },
+    },
+  });
+
+  let pending = 0;
+  const relayout = () => {
+    cancelAnimationFrame(pending);
+    pending = requestAnimationFrame(() => {
+      game.scale.resize(Math.round(cssW() * dpr), Math.round(cssH() * dpr));
+      game.scale.setZoom(1 / dpr);
+      game.events.emit('relayout');
+    });
+  };
+  window.addEventListener('resize', relayout);
+  // safe-area values can arrive late on Android (SystemBars injects them)
+  let lastInsets = '';
+  const probe = document.getElementById('safe-probe')!;
+  const watch = () => {
+    const s = getComputedStyle(probe);
+    const k = [s.paddingTop, s.paddingBottom, s.paddingLeft, s.paddingRight].join();
+    if (k !== lastInsets) {
+      if (lastInsets) relayout();
+      lastInsets = k;
+    }
+  };
+  setInterval(watch, 500);
+  watch();
+
+  // test/debug hook (used by the Playwright suite)
+  (window as unknown as { __bgb: unknown }).__bgb = { game };
+}
+
+void boot();

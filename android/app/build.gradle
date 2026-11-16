@@ -1,5 +1,8 @@
 apply plugin: 'com.android.application'
 
+// CI sets GITHUB_RUN_NUMBER so every build installs over the previous one
+def runNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+
 android {
     namespace = "com.danielgebhardt.blockersgonnablock"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,9 +10,8 @@ android {
         applicationId "com.danielgebhardt.blockersgonnablock"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // CI sets GITHUB_RUN_NUMBER so every build installs over the previous one
-        versionCode (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
-        versionName "1.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
+        versionCode runNumber
+        versionName "1.0.${runNumber}"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

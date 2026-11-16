@@ -124,13 +124,16 @@ async function main() {
       await drag(page, cdp, lvl, lvl.solution[0]);
       let i = await info(page);
       check(i.moves === 1, 'a drag counts as one move');
-      await tap(page, cdp, i.buttons.undo[0], i.buttons.undo[1]);
+      // tap near the bottom-right of the button: the whole button must be tappable
+      const [ux, uy, uw, uh] = i.buttons.undo;
+      await tap(page, cdp, ux + uw * 0.38, uy + uh * 0.35);
       await page.waitForTimeout(300);
       i = await info(page);
-      check(i.moves === 0 && i.usedUndo, 'undo takes the move back');
+      check(i.moves === 0 && i.usedUndo, 'undo takes the move back (tapped at the button corner)');
       check(i.stars === 2, 'undo costs a star (3 → 2 max)');
       // --- hint
-      await tap(page, cdp, i.buttons.hint[0], i.buttons.hint[1]);
+      const [hx, hy, hw, hh] = i.buttons.hint;
+      await tap(page, cdp, hx - hw * 0.38, hy - hh * 0.35);
       await page.waitForTimeout(700);
       i = await info(page);
       check(i.hintShown && i.usedHint, 'hint shows the next move');

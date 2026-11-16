@@ -125,7 +125,9 @@ export function button(
   };
   draw();
   c.setSize(w, h);
-  c.setInteractive(new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h), Phaser.Geom.Rectangle.Contains);
+  // Phaser offsets a container's hit area by its display origin (half its size),
+  // so the rectangle is given in top-left-based coordinates.
+  c.setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains);
   c.on('pointerdown', () => {
     if (o.disabled) return;
     unlockAudio();

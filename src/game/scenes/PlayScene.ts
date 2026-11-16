@@ -932,8 +932,8 @@ export class PlayScene extends Phaser.Scene {
           toast: this.toast ? ((this.toast.list[1] as Phaser.GameObjects.Text)?.text ?? '') : '',
           hintShown: this.hintG.commandBuffer.length > 0,
           buttons: {
-            undo: [this.undoBtn.x / dpr, this.undoBtn.y / dpr],
-            hint: [this.hintBtn.x / dpr, this.hintBtn.y / dpr],
+            undo: [this.undoBtn.x / dpr, this.undoBtn.y / dpr, this.undoBtn.width / dpr, this.undoBtn.height / dpr],
+            hint: [this.hintBtn.x / dpr, this.hintBtn.y / dpr, this.hintBtn.width / dpr, this.hintBtn.height / dpr],
           },
         };
       },

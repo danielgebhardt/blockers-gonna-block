@@ -118,15 +118,25 @@ async function main() {
     {
       const lvl = levels[0];
       const { page, cdp } = await open(ctx, url, lvl.index);
-      await drag(page, cdp, lvl, lvl.solution[0]);
+      // level 1 opens with a reposition: use it to check move merging
+      const first = lvl.solution[0];
+      if (first.g !== undefined) throw new Error('expected a reposition first');
+      const home = { b: first.b, x: lvl.blocks[first.b].x, y: lvl.blocks[first.b].y };
+      await drag(page, cdp, lvl, first);
+      check((await info(page)).moves === 1, 'a drag counts as one move');
+      await drag(page, cdp, lvl, home);
+      check((await info(page)).moves === 0, 'dragging the same block straight back cancels the move');
+      await drag(page, cdp, lvl, first);
+      await drag(page, cdp, lvl, lvl.solution[1]);
       let i = await info(page);
-      check(i.moves === 1, 'a drag counts as one move');
+      check(i.moves === 2, 'a different block starts a new move');
+      const before = 1;
       // tap near the bottom-right of the button: the whole button must be tappable
       const [ux, uy, uw, uh] = i.buttons.undo;
       await tap(page, cdp, ux + uw * 0.38, uy + uh * 0.35);
       await page.waitForTimeout(300);
       i = await info(page);
-      check(i.moves === 0 && i.usedUndo, 'undo takes the move back (tapped at the button corner)');
+      check(i.moves === before && i.usedUndo, 'undo takes the move back (tapped at the button corner)');
       check(i.stars === 2, 'undo costs a star (3 → 2 max)');
       // --- hint
       const [hx, hy, hw, hh] = i.buttons.hint;

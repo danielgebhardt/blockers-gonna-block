@@ -4,9 +4,9 @@ import { blockWordWidth, drawBlockWord, fillUnion } from '../draw';
 import { LEVELS } from '../levels';
 import { COLORS, UI, mix } from '../palette';
 import { setHaptics } from '../platform';
-import { highestCleared, persist, save, totalStars } from '../save';
+import { isUnlocked, persist, save, totalStars } from '../save';
 import { type Layout, background, button, layout, text } from '../ui';
-import { SET_NAMES } from '../setnames';
+import { SETS, TOTAL_LEVELS } from '../../core/sets';
 import { FAMILY_SAMPLES } from './samples';
 
 export class MenuScene extends Phaser.Scene {
@@ -53,20 +53,25 @@ export class MenuScene extends Phaser.Scene {
 
     y += 8 * u;
     const stars = totalStars();
-    text(this, cx, y, `★ ${stars} / ${LEVELS.length * 3}`, 18 * u, UI.accent);
+    text(this, cx, y, `★ ${stars} / ${TOTAL_LEVELS * 3}`, 18 * u, UI.accent);
     y += 40 * u;
 
     const bw = Math.min(L.w * 0.7, 300 * u);
     const bh = 64 * u;
-    const next = Math.min(LEVELS.length, highestCleared() + 1);
+    // first open level you haven't cleared yet, in play order
+    const sv0 = save();
+    // ...or, with everything cleared, the first one still short of three stars
+    const next =
+      LEVELS.find((l) => !sv0.levels[l.id] && isUnlocked(l.id)) ?? LEVELS.find((l) => (sv0.levels[l.id]?.stars ?? 0) < 3);
+    const started = Object.keys(sv0.levels).length > 0;
     button(
       this,
       cx,
       y + bh / 2,
       bw,
       bh,
-      { icon: 'play', label: highestCleared() ? `Continue · ${next}` : 'Play', fill: 0x2f9e6b, fillLight: 0x46c48a, fontSize: 24 * u },
-      () => this.scene.start('play', { index: next }),
+      { icon: 'play', label: !started ? 'Play' : next ? `Continue · ${next.index}` : 'All clear!', fill: 0x2f9e6b, fillLight: 0x46c48a, fontSize: 24 * u },
+      () => (next ? this.scene.start('play', { id: next.id }) : this.scene.start('levels')),
     );
     y += bh + 18 * u;
     button(this, cx, y + bh * 0.42, bw, bh * 0.84, { icon: 'grid', label: 'Levels', fontSize: 20 * u }, () =>
@@ -89,7 +94,7 @@ export class MenuScene extends Phaser.Scene {
       hap.redraw({ icon: sv.haptics ? 'buzz' : 'nobuzz' });
     });
 
-    text(this, cx, L.y + L.h - 14 * u, `${SET_NAMES.length} sets · ${LEVELS.length} levels · v${__APP_VERSION__}`, 12 * u, UI.textDim, {
+    text(this, cx, L.y + L.h - 14 * u, `${SETS.length} sets · ${LEVELS.length} levels · v${__APP_VERSION__}`, 12 * u, UI.textDim, {
       bold: false,
     });
     this.input.once('pointerdown', () => unlockAudio());

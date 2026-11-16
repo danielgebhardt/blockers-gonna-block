@@ -57,12 +57,35 @@ export class Session {
     return isWon(this.state);
   }
 
-  /** Apply a move after validating it. Returns false if illegal. */
+  /**
+   * Apply a drag after validating it. Returns false if illegal.
+   *
+   * Consecutive drags of the same block are one move: if the previous move
+   * only repositioned this block, the drag extends that move (dragging it
+   * back where it started cancels the move). A move ends when a block leaves
+   * or peels. Par is unaffected: one drag can always reach anywhere two
+   * consecutive drags of the same block could (nothing else moved).
+   */
   play(m: IMove): boolean {
     if (this.won || checkMove(this.c, this.state, m)) return false;
+    const last = this.history[this.history.length - 1];
+    const extend = !!last && last.move.g < 0 && last.move.b === m.b;
+    if (extend) {
+      last.move = m;
+      this.state = applyMove(this.c, this.state, m);
+      // back to where the move started: it never happened
+      if (m.g < 0 && last.before.pos[m.b] === m.a) this.history.pop();
+      return true;
+    }
     this.history.push({ move: m, before: cloneState(this.state) });
     this.state = applyMove(this.c, this.state, m);
     return true;
+  }
+
+  /** Whether a drag of block b right now would extend the current move. */
+  extends(b: number): boolean {
+    const last = this.history[this.history.length - 1];
+    return !!last && last.move.g < 0 && last.move.b === b;
   }
 
   undo(): MoveRecord | null {

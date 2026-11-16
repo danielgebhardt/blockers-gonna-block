@@ -8,12 +8,12 @@ import { evaluate } from './evaluate';
 import { SLOTS } from './slots';
 
 export interface Job {
-  slot: number;
+  slot: string;
   seed: number;
 }
 
 parentPort!.on('message', (job: Job) => {
-  const slot = SLOTS.find((s) => s.index === job.slot)!;
+  const slot = SLOTS.find((s) => s.id === job.slot)!;
   const t0 = Date.now();
   const r = climb(slot, job.seed, slot.iters);
   if (!r) {

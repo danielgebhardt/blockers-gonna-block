@@ -1,4 +1,5 @@
 /** Saved progress and settings (Capacitor Preferences, localStorage on the web). */
+import { SETS, legacyId, parseId } from '../core/sets';
 import { setHaptics, storeGet, storeSet } from './platform';
 
 export interface LevelProgress {
@@ -7,27 +8,53 @@ export interface LevelProgress {
 }
 
 export interface SaveData {
-  version: 1;
-  levels: Record<number, LevelProgress>;
+  version: 2;
+  /** Keyed by permanent level id (e.g. "stone-07"). */
+  levels: Record<string, LevelProgress>;
   sound: boolean;
   haptics: boolean;
-  /** Tips already shown (by level index). */
-  tipsSeen: number[];
+  /** Tips already shown (level ids). */
+  tipsSeen: string[];
 }
 
-const KEY = 'bgb.save.v1';
+const KEY_V1 = 'bgb.save.v1';
+const KEY = 'bgb.save.v2';
 
-let data: SaveData = { version: 1, levels: {}, sound: true, haptics: true, tipsSeen: [] };
+let data: SaveData = { version: 2, levels: {}, sound: true, haptics: true, tipsSeen: [] };
+
+/** v1 saves were keyed by the first release's level numbers (1..30). */
+export function migrateV1(d: {
+  levels?: Record<string, LevelProgress>;
+  sound?: boolean;
+  haptics?: boolean;
+  tipsSeen?: number[];
+}): SaveData {
+  const levels: Record<string, LevelProgress> = {};
+  for (const [k, v] of Object.entries(d.levels ?? {})) levels[legacyId(Number(k))] = v;
+  return {
+    version: 2,
+    levels,
+    sound: d.sound ?? true,
+    haptics: d.haptics ?? true,
+    tipsSeen: (d.tipsSeen ?? []).map((i) => legacyId(i)),
+  };
+}
 
 export async function loadSave(): Promise<SaveData> {
-  const raw = await storeGet(KEY);
-  if (raw) {
-    try {
+  try {
+    const raw = await storeGet(KEY);
+    if (raw) {
       const d = JSON.parse(raw);
-      if (d && d.version === 1) data = { ...data, ...d };
-    } catch {
-      /* corrupt save: start fresh */
+      if (d?.version === 2) data = { ...data, ...d };
+    } else {
+      const old = await storeGet(KEY_V1);
+      if (old) {
+        data = migrateV1(JSON.parse(old));
+        persist();
+      }
     }
+  } catch {
+    /* corrupt save: start fresh */
   }
   setHaptics(data.haptics);
   return data;
@@ -39,18 +66,43 @@ export function persist() {
   void storeSet(KEY, JSON.stringify(data));
 }
 
-/** Record a clear; keeps the best stars and best move count. Returns true if improved. */
-export function recordClear(index: number, stars: number, moves: number): boolean {
-  const old = data.levels[index];
+/** Record a clear; keeps the best stars and best move count. */
+export function recordClear(id: string, stars: number, moves: number): boolean {
+  const old = data.levels[id];
   const improved = !old || stars > old.stars || moves < old.best;
-  data.levels[index] = { stars: Math.max(old?.stars ?? 0, stars), best: Math.min(old?.best ?? Infinity, moves) };
+  data.levels[id] = { stars: Math.max(old?.stars ?? 0, stars), best: Math.min(old?.best ?? Infinity, moves) };
   persist();
   return improved;
 }
 
-export const highestCleared = () => Math.max(0, ...Object.keys(data.levels).map(Number));
+const clearedIn = (progress: Record<string, LevelProgress>, set: number) =>
+  Object.keys(progress)
+    .map(parseId)
+    .filter((p): p is { set: number; pos: number } => !!p && p.set === set);
 
-/** A level is open if it's within two of the furthest level cleared. */
-export const isUnlocked = (index: number) => index <= highestCleared() + 2 || !!data.levels[index];
+/** Levels of the previous set you must clear before a set opens. */
+export const SET_GATE = 5;
+
+/** A set opens once SET_GATE levels of the set before it are cleared. */
+export function isSetOpen(set: number, progress = data.levels): boolean {
+  if (set <= 1) return true;
+  return clearedIn(progress, set - 1).length >= Math.min(SET_GATE, SETS[set - 2].size);
+}
+
+/** Inside an open set, levels open two ahead of the furthest one cleared. */
+export function isUnlocked(id: string, progress = data.levels): boolean {
+  if (progress[id]) return true;
+  const p = parseId(id);
+  if (!p || !isSetOpen(p.set, progress)) return false;
+  const furthest = Math.max(0, ...clearedIn(progress, p.set).map((c) => c.pos));
+  return p.pos <= furthest + 2;
+}
+
+export const clearedCount = (set: number) => clearedIn(data.levels, set).length;
+
+export const setStars = (set: number) =>
+  Object.entries(data.levels)
+    .filter(([id]) => parseId(id)?.set === set)
+    .reduce((a, [, l]) => a + l.stars, 0);
 
 export const totalStars = () => Object.values(data.levels).reduce((a, l) => a + l.stars, 0);

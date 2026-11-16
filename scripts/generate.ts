@@ -2,7 +2,8 @@
  * Level factory.
  *
  *   npx tsx scripts/generate.ts                 # all unfrozen slots
- *   npx tsx scripts/generate.ts --slots 1-5,9   # some slots
+ *   npx tsx scripts/generate.ts --slots 1-5,9   # some slots (global level numbers)
+ *   npx tsx scripts/generate.ts --only '^stone-' # slots whose id matches
  *   npx tsx scripts/generate.ts --climbs 12 --select-only
  *
  * For every slot it runs several simulated-annealing climbs in parallel
@@ -46,6 +47,8 @@ function parseArgs() {
   };
   const slotsArg = get('--slots');
   let slots = SLOTS.map((s) => s.index);
+  const only = get('--only');
+  if (only) slots = SLOTS.filter((s) => new RegExp(only).test(s.id)).map((s) => s.index);
   if (slotsArg) {
     slots = [];
     for (const part of slotsArg.split(',')) {
@@ -117,7 +120,7 @@ function similarity(a: Puzzle, b: Puzzle): number {
 
 function select(slot: Slot, cands: Candidate[], chosen: LevelDef[]): Candidate | null {
   if (!cands.length) return null;
-  const neighbours = chosen.filter((l) => Math.abs(l.index - slot.index) <= 2 && l.index !== slot.index);
+  const neighbours = chosen.filter((l) => l.set === slot.set && Math.abs(l.pos - slot.pos) <= 2 && l.id !== slot.id);
   const keyOf = (c: Candidate) => {
     const v = violations(slot, c).length;
     const sim = neighbours.reduce((m, l) => Math.max(m, similarity(l, c.puzzle)), 0);
@@ -131,8 +134,10 @@ function select(slot: Slot, cands: Candidate[], chosen: LevelDef[]): Candidate |
 function toLevel(slot: Slot, c: Candidate): LevelDef {
   const e = c.eval;
   return {
+    id: slot.id,
     index: slot.index,
     set: slot.set,
+    pos: slot.pos,
     name: slot.name,
     ...(slot.tip ? { tip: slot.tip } : {}),
     w: c.puzzle.w,
@@ -156,7 +161,7 @@ function toLevel(slot: Slot, c: Candidate): LevelDef {
   };
 }
 
-async function runJobs(jobs: { slot: number; seed: number }[], threads: number, onResult: (r: any) => void) {
+async function runJobs(jobs: { slot: string; seed: number }[], threads: number, onResult: (r: any) => void) {
   let next = 0;
   let done = 0;
   await new Promise<void>((resolve) => {
@@ -192,13 +197,13 @@ async function main() {
   mkdirSync(outDir, { recursive: true });
   const lock: Record<string, string> = readJson(lockFile, {});
   const levels: LevelDef[] = readJson(levelsFile, []);
-  const slots = SLOTS.filter((s) => args.slots.includes(s.index) && !lock[s.index]);
-  const skipped = args.slots.filter((i) => lock[i]);
+  const slots = SLOTS.filter((s) => args.slots.includes(s.index) && !lock[s.id]);
+  const skipped = SLOTS.filter((s) => args.slots.includes(s.index) && lock[s.id]).map((s) => s.id);
   if (skipped.length) console.log(`frozen, not touched: ${skipped.join(', ')}`);
 
   if (!args.selectOnly) {
     const jobs = slots.flatMap((s) =>
-      Array.from({ length: args.climbs ?? s.climbs }, (_, k) => ({ slot: s.index, seed: args.seed * 1000 + s.index * 37 + k })),
+      Array.from({ length: args.climbs ?? s.climbs }, (_, k) => ({ slot: s.id, seed: args.seed * 1000 + s.index * 37 + k })),
     );
     console.log(`${jobs.length} climbs on ${args.threads} threads`);
     await runJobs(jobs, args.threads, (msg) => {
@@ -207,7 +212,7 @@ async function main() {
       if (msg.result) list.push({ seed: msg.job.seed, ...msg.result });
       writeFileSync(f, JSON.stringify(list));
       const e = msg.result?.eval;
-      const slot = SLOTS.find((s) => s.index === msg.job.slot)!;
+      const slot = SLOTS.find((s) => s.id === msg.job.slot)!;
       const v = msg.result ? violations(slot, { seed: 0, ...msg.result }) : ['none'];
       console.log(
         `slot ${msg.job.slot} seed ${msg.job.seed} ${(msg.ms / 1000).toFixed(0)}s: ` +
@@ -219,26 +224,26 @@ async function main() {
   }
 
   // selection, in slot order so neighbours can be compared
-  const byIndex = new Map(levels.map((l) => [l.index, l]));
+  const byId = new Map(levels.map((l) => [l.id, l]));
   for (const slot of SLOTS) {
-    if (!args.slots.includes(slot.index) || lock[slot.index]) continue;
-    const cands: Candidate[] = readJson(join(outDir, `cand-${slot.index}.json`), []);
-    const best = select(slot, cands, [...byIndex.values()]);
+    if (!args.slots.includes(slot.index) || lock[slot.id]) continue;
+    const cands: Candidate[] = readJson(join(outDir, `cand-${slot.id}.json`), []);
+    const best = select(slot, cands, [...byId.values()]);
     if (!best) {
-      console.log(`slot ${slot.index}: no candidates`);
+      console.log(`slot ${slot.id}: no candidates`);
       continue;
     }
     const v = violations(slot, best);
     const lvl = toLevel(slot, best);
-    byIndex.set(slot.index, lvl);
-    console.log(`\n=== ${slot.index}. ${slot.name}  par ${lvl.par}  ${v.length ? 'WARN ' + v.join('; ') : 'ok'}  (${cands.length} candidates)`);
+    byId.set(slot.id, lvl);
+    console.log(`\n=== ${slot.id} (#${slot.index}) ${slot.name}  par ${lvl.par}  ${v.length ? 'WARN ' + v.join('; ') : 'ok'}  (${cands.length} candidates)`);
     console.log(ascii(lvl));
   }
-  const out = [...byIndex.values()].sort((a, b) => a.index - b.index);
+  const out = [...byId.values()].sort((a, b) => a.index - b.index);
   mkdirSync(dirname(levelsFile), { recursive: true });
   writeFileSync(levelsFile, formatLevels(out));
   console.log(`\nwrote ${out.length} levels; hashes:`);
-  for (const l of out) console.log(`  ${l.index}: ${levelHash(l)}${lock[l.index] ? ' (frozen)' : ''}`);
+  for (const l of out) console.log(`  ${l.id}: ${levelHash(l)}${lock[l.id] ? ' (frozen)' : ''}`);
 }
 
 /** One level per line block, readable diffs. */

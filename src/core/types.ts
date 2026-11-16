@@ -85,10 +85,14 @@ export interface LevelStats {
 }
 
 export interface LevelDef extends Puzzle {
-  /** 1-based level number. */
+  /** Permanent id, e.g. "stone-07". Saves and the freeze lock use it. */
+  id: string;
+  /** Global display number (fixed by the set layout in sets.ts). */
   index: number;
-  /** 1-based set number (6 sets of 5). */
+  /** 1-based set number. */
   set: number;
+  /** 1-based position within the set. */
+  pos: number;
   name: string;
   tip?: string;
   par: number;

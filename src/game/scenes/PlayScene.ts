@@ -17,11 +17,11 @@ import type { LevelDef, Side } from '../../core/types';
 import { sfx, unlockAudio } from '../audio';
 import { centreCell, drawBlock, drawBoard, drawGate, drawStar, fillUnion } from '../draw';
 import { solveFrom } from '../hints';
-import { LEVELS, levelByIndex } from '../levels';
+import { LEVELS, levelById, levelByIndex, nextLevel } from '../levels';
 import { COLORS, UI } from '../palette';
 import { haptic } from '../platform';
 import { persist, recordClear, save } from '../save';
-import { SET_NAMES } from '../setnames';
+import { SETS } from '../../core/sets';
 import { type Button, type Layout, background, button, layout, modal, panelOf, text } from '../ui';
 
 interface View {
@@ -79,8 +79,8 @@ export class PlayScene extends Phaser.Scene {
     super('play');
   }
 
-  init(data: { index: number; keepHint?: boolean }) {
-    const lvl = levelByIndex(data.index) ?? LEVELS[0];
+  init(data: { id?: string; index?: number; keepHint?: boolean }) {
+    const lvl = (data.id ? levelById(data.id) : undefined) ?? (data.index ? levelByIndex(data.index) : undefined) ?? LEVELS[0];
     this.level = lvl;
     this.session = new Session(lvl);
     this.views = [];
@@ -133,12 +133,14 @@ export class PlayScene extends Phaser.Scene {
     this.oy = Math.round(top + (availH - lvl.h * cs) / 2);
 
     // header
-    button(this, L.x + 34 * u, L.y + headerH / 2, 48 * u, 44 * u, { icon: 'back' }, () => this.scene.start('levels'));
+    button(this, L.x + 34 * u, L.y + headerH / 2, 48 * u, 44 * u, { icon: 'back' }, () => this.scene.start('levels', { set: this.level.set }));
     button(this, L.x + L.w - 34 * u, L.y + headerH / 2, 48 * u, 44 * u, { icon: 'restart' }, () => this.restart());
     const title = text(this, L.x + L.w / 2, L.y + headerH * 0.36, `${lvl.index}. ${lvl.name}`, 19 * u);
     const titleRoom = L.w - 2 * 120 * u;
     if (title.width > titleRoom) title.setScale(titleRoom / title.width);
-    text(this, L.x + L.w / 2, L.y + headerH * 0.78, SET_NAMES[lvl.set - 1], 12 * u, UI.textDim, { bold: false });
+    text(this, L.x + L.w / 2, L.y + headerH * 0.78, `${SETS[lvl.set - 1].name} · ${lvl.pos}/${SETS[lvl.set - 1].size}`, 12 * u, UI.textDim, {
+      bold: false,
+    });
     if (this.tipFor()) button(this, L.x + 88 * u, L.y + headerH / 2, 40 * u, 40 * u, { label: '?' }, () => this.showTip());
 
     // info row
@@ -181,7 +183,7 @@ export class PlayScene extends Phaser.Scene {
     this.input.on('pointerupoutside', (p: Phaser.Input.Pointer) => this.onUp(p));
 
     this.updateHud();
-    if (!rebuild && lvl.tip && !save().tipsSeen.includes(lvl.index)) this.tipTimer = this.time.delayedCall(250, () => this.showTip());
+    if (!rebuild && lvl.tip && !save().tipsSeen.includes(lvl.id)) this.tipTimer = this.time.delayedCall(250, () => this.showTip());
   }
 
   private anchorCentre(i: number, a: number): [number, number] {
@@ -597,7 +599,7 @@ export class PlayScene extends Phaser.Scene {
     const key = stateKey(this.session.c, s);
     const cached = this.hintCache.get(key);
     if (cached) return cached;
-    const r = await solveFrom(`L${this.level.index}`, this.level, s);
+    const r = await solveFrom(this.level.id, this.level, s);
     if (r.solvable === null) return 'unknown';
     if (!r.solvable) return null;
     this.cacheSolution(s, r.moves);
@@ -797,7 +799,7 @@ export class PlayScene extends Phaser.Scene {
     probe.destroy();
     const m = modal(this, L, w, h);
     const p = panelOf(m);
-    p.add(text(this, 0, -h / 2 + 34 * u, `New: ${SET_NAMES[this.level.set - 1]}`, 20 * u, UI.accent));
+    p.add(text(this, 0, -h / 2 + 34 * u, `New: ${SETS[this.level.set - 1].name}`, 20 * u, UI.accent));
     const ex = this.add.graphics();
     const demoCs = 40 * u;
     const demos = [
@@ -818,7 +820,7 @@ export class PlayScene extends Phaser.Scene {
     p.add(
       button(this, 0, h / 2 - 40 * u, 160 * u, 50 * u, { label: 'Got it', fill: 0x2f9e6b, fillLight: 0x46c48a }, () => {
         const sv = save();
-        if (!sv.tipsSeen.includes(this.level.index)) sv.tipsSeen.push(this.level.index);
+        if (!sv.tipsSeen.includes(this.level.id)) sv.tipsSeen.push(this.level.id);
         persist();
         m.destroy();
         this.overlay = null;
@@ -830,7 +832,7 @@ export class PlayScene extends Phaser.Scene {
   private win() {
     const s = this.session;
     const stars = s.stars();
-    recordClear(this.level.index, stars, s.moves);
+    recordClear(this.level.id, stars, s.moves);
     sfx.win();
     haptic.success();
     this.confetti();
@@ -874,13 +876,13 @@ export class PlayScene extends Phaser.Scene {
     p.add(text(this, 0, -h / 2 + 190 * u, msg, 15 * u, UI.text, { wrap: w - 40 * u, bold: false }));
     const bw = (w - 64 * u) / 3;
     const by = h / 2 - 48 * u;
-    p.add(button(this, -bw - 12 * u, by, bw, 54 * u, { icon: 'grid' }, () => this.scene.start('levels')));
+    p.add(button(this, -bw - 12 * u, by, bw, 54 * u, { icon: 'grid' }, () => this.scene.start('levels', { set: this.level.set })));
     p.add(button(this, 0, by, bw, 54 * u, { icon: 'restart' }, () => this.restart()));
-    const next = levelByIndex(this.level.index + 1);
+    const next = nextLevel(this.level);
     if (next)
       p.add(
         button(this, bw + 12 * u, by, bw, 54 * u, { icon: 'next', fill: 0x2f9e6b, fillLight: 0x46c48a }, () =>
-          this.scene.start('play', { index: next.index }),
+          this.scene.start('play', { id: next.id }),
         ),
       );
   }
@@ -916,6 +918,7 @@ export class PlayScene extends Phaser.Scene {
         const dpr = this.L.dpr;
         return {
           index: this.level.index,
+          id: this.level.id,
           w: this.level.w,
           h: this.level.h,
           cs: this.cs / dpr,

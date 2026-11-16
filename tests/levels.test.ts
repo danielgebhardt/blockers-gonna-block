@@ -9,6 +9,7 @@ import { auditPuzzle } from '../src/core/audit';
 import { compile, isWon, replay } from '../src/core/engine';
 import { levelHash } from '../src/core/levelhash';
 import { solve } from '../src/core/solver';
+import { SETS, levelId, levelNumber } from '../src/core/sets';
 import type { LevelDef } from '../src/core/types';
 
 const levels: LevelDef[] = JSON.parse(readFileSync(new URL('../src/levels/levels.json', import.meta.url), 'utf8'));
@@ -16,24 +17,34 @@ const lockUrl = new URL('../src/levels/levels.lock.json', import.meta.url);
 const lock: Record<string, string> = existsSync(lockUrl) ? JSON.parse(readFileSync(lockUrl, 'utf8')) : {};
 
 describe('level set', () => {
-  it('has 30 levels in 6 sets of 5, with a tip opening each set', () => {
-    expect(levels.map((l) => l.index)).toEqual(Array.from({ length: 30 }, (_, i) => i + 1));
+  it('follows the set layout: ids, numbers and tips', () => {
+    const ids = new Set<string>();
     for (const l of levels) {
-      expect(l.set).toBe(Math.floor((l.index - 1) / 5) + 1);
-      expect(!!l.tip).toBe((l.index - 1) % 5 === 0);
+      expect(ids.has(l.id), `duplicate ${l.id}`).toBe(false);
+      ids.add(l.id);
+      expect(l.id).toBe(levelId(l.set, l.pos));
+      expect(l.index).toBe(levelNumber(l.set, l.pos));
+      expect(l.pos).toBeLessThanOrEqual(SETS[l.set - 1].size);
+      expect(!!l.tip, `${l.id} tip`).toBe(l.pos === 1);
     }
+    // every set's first five (the first release) are always there
+    for (let s = 1; s <= SETS.length; s++) for (let p = 1; p <= 5; p++) expect(ids.has(levelId(s, p))).toBe(true);
   });
 
   it('frozen levels are unchanged', () => {
-    for (const [idx, hash] of Object.entries(lock)) {
-      const l = levels.find((x) => x.index === Number(idx));
-      expect(l, `frozen level ${idx} missing`).toBeTruthy();
-      expect(levelHash(l!), `level ${idx} changed after it was frozen`).toBe(hash);
+    for (const [id, hash] of Object.entries(lock)) {
+      const l = levels.find((x) => x.id === id);
+      expect(l, `frozen level ${id} missing`).toBeTruthy();
+      expect(levelHash(l!), `level ${id} changed after it was frozen`).toBe(hash);
     }
+  });
+
+  it('every shipped level is frozen', () => {
+    for (const l of levels) expect(lock[l.id], `${l.id} is not frozen`).toBeTruthy();
   });
 });
 
-describe.each(levels.map((l) => [l.index, l] as const))('level %i', (_i, l) => {
+describe.each(levels.map((l) => [l.id, l] as const))('level %s', (_id, l) => {
   it('is well formed', () => {
     const c = compile(l); // throws on bad geometry
     const sideLen = (s: string) => (s === 'N' || s === 'S' ? l.w : l.h);

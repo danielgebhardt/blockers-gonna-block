@@ -125,7 +125,7 @@ export const SLOTS: Slot[] = [
   slot(22, { w: 6, h: 7, colors: 4, blocks: [8, 10], shapes: SHAPES_ALL, layered: [2, 3] }, 'any'),
   slot(23, { w: 6, h: 7, colors: 4, blocks: [8, 11], shapes: SHAPES_ALL, layered: [2, 3], ice: [0, 1] }, 'late'),
   slot(24, { w: 6, h: 8, colors: 4, blocks: [9, 11], shapes: SHAPES_ALL, layered: [2, 4], oneway: [0, 2] }, 'any'),
-  slot(25, { w: 7, h: 8, colors: 5, blocks: [9, 12], shapes: SHAPES_ALL, layered: [2, 3], walls: [0, 2] }, 'late'),
+  slot(25, { w: 6, h: 8, colors: 4, blocks: [10, 12], shapes: SHAPES_ALL, layered: [2, 3], walls: [0, 2] }, 'late'),
   // ---- 26-30 shifting gates + everything
   slot(26, { w: 5, h: 6, colors: 3, blocks: [6, 8], shapes: SHAPES_ALL, shifting: [1, 1] }, 'any'),
   slot(27, { w: 6, h: 6, colors: 4, blocks: [7, 9], shapes: SHAPES_ALL, shifting: [1, 2] }, 'late'),

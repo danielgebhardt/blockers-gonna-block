@@ -73,7 +73,7 @@ function targets(pos: number, set: number, keyAt: Targets['keyAt']): Targets {
     minSetup: [2, 2, 3, 3, 4][pos],
     maxLook: [0.45, 0.32, 0.22, 0.14, 0.08][pos] - set * 0.01,
     maxEager: [0.15, 0.1, 0.06, 0.04, 0.02][pos],
-    maxParFirst: [6, 5, 4, 3, 3][pos],
+    maxParFirst: [6, 6, 5, 5, 4][pos],
     keyAt,
   };
 }

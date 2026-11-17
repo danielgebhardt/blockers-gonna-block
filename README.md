@@ -7,19 +7,23 @@ An original sliding-block puzzle for Android. Drag coloured blocks around a box 
 
 ## Rules
 
-- One drag = one move. A dragged block follows your finger cell by cell, in any direction and around corners, until other blocks or walls stop it.
+- A dragged block follows your finger cell by cell, in any direction and around corners, until other blocks or walls stop it. Dragging the same block again counts as the same move; a move ends when you drag a different block, or when a block leaves or peels. Dragging a block straight back to where it started cancels the move.
 - A block leaves when you push it against a gate of the same colour whose opening covers the block's whole width along that edge.
 - Clear every block. There is no timer. Par is the shortest possible solution, proven by an exact solver.
 - Stars: 3 for at most par moves, 2 for par + 20% (at least +2), otherwise 1. Using undo costs a star, and so does using a hint (each counts once per attempt). You always get at least 1 star.
 
-| Levels | New obstacle |
-|---|---|
-| 1–5   | Basics: colours and gates |
-| 6–10  | Stone walls inside the box, holes and notches in the board |
-| 11–15 | One-way blocks: slide only left/right or only up/down |
-| 16–20 | Frozen blocks: can't move until *n* other blocks have left |
-| 21–25 | Layered blocks: leaving through the shell colour peels the shell; the core stays and needs its own gate |
-| 26–30 | Shifting gates: change colour every time a block leaves, plus a mix of everything |
+160 levels in six sets. Each set opens once you've cleared 5 levels of the set before it; inside a set, levels open two ahead of the furthest one you've cleared. Later waves of each set mix in the obstacles from earlier sets.
+
+| Levels | Set | New obstacle |
+|---|---|---|
+| 1–10    | Basics | colours and gates |
+| 11–40   | Stonework | stone walls inside the box, holes and notches in the board |
+| 41–70   | One Way | blocks that slide only left/right or only up/down |
+| 71–100  | Deep Freeze | frozen blocks: can't move until *n* other blocks have left |
+| 101–130 | Layers | leaving through the shell colour peels the shell; the core stays and needs its own gate |
+| 131–160 | Shifting Gates | gates change colour every time a block leaves |
+
+Levels have permanent ids (`stone-07`), so progress is saved per level and survives new levels being added.
 
 ## Code layout
 
@@ -40,14 +44,16 @@ android/       Capacitor Android project (committed debug keystore)
 
 ## How levels are made
 
-`npx tsx scripts/generate.ts [--slots 1-5] [--climbs N]`
+`npx tsx scripts/generate.ts [--only '^stone-'] [--climbs N] [--resume]`
 
 For each of the 30 slots, the generator runs several simulated-annealing climbs in worker threads. Each candidate is scored by:
 
 1. **Exact solve.** Par is the length of the shortest solution. We also measure how many moves are repositionings (not exits) and the longest run of setup moves before something can leave.
 2. **Random play.** Hundreds of simulated novices: purely random, "eager" (always takes an exit when it can), and "one-move lookahead". A level is kept only when these usually fail within 1.5 × par + 2 moves. The thresholds tighten through each set of 5.
-3. **Obstacle audit.** Each wall group, hole, one-way arrow, ice block, shell and shifting gate is neutralised in turn and the level re-solved. If par doesn't change, the obstacle is decoration and the level is rejected. A shell must cost more than its own peel move.
+3. **Obstacle audit.** Each wall group, hole, one-way arrow, ice block, shell and shifting gate is neutralised in turn and the level re-solved. If par doesn't change, the obstacle is decoration. A shell must cost more than its own peel move. Decorative obstacles are stripped and the level re-evaluated from scratch; only levels whose remaining obstacles all matter (and that still contain their set's obstacle) can ship.
 4. **Variety.** Upper caps on par and setup length keep levels hard rather than tedious. Selection also penalises repeating a neighbour's shape mix, board size, or where in the solution the key moment falls.
+
+Slot specs and targets live in `scripts/lib/slots.ts` (waves of five that ramp like the first release, with a small bump per wave). One exception: level 150 (`shift-20`) ships as a near miss of its own targets: 6 repositions where 7 were wanted, and a 4% lookahead-novice success rate against a 3% cap.
 
 Shipped levels are frozen with `npx tsx scripts/freeze.ts`. The tests then fail if a frozen level changes, and the generator never regenerates a frozen slot.
 

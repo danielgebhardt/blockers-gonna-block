@@ -172,7 +172,7 @@ function ownObstacle(set: number, wave: number, rng: () => number): Partial<Spec
       return { walls: [1, 3], voids: [2, 5] };
     }
     case 3:
-      return { oneway: [2 + (w >> 2), 4 + (w >> 1)] };
+      return { oneway: [2, 4 + (w >> 1)] };
     case 4:
       return { ice: [1 + (w >> 2), 3 + (w >> 1)] };
     case 5:

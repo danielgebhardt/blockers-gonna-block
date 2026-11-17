@@ -94,11 +94,13 @@ function targets(pos: number, set: number, keyAt: Targets['keyAt'], wave = 0): T
     maxPar: [16, 19, 21, 24, 27][pos] + Math.floor(ramp) + bump,
     maxRepos: [6, 8, 9, 11, 12][pos] + (set >= 2 ? 1 : 0) + bump,
     maxSetup: [4, 5, 6, 7, 8][pos] + Math.floor(bump / 2),
-    minRepos: [3, 4, 5, 5, 6][pos] + (set >= 2 ? 1 : 0) + Math.floor(bump / 2),
+    // shifting-gate boards stay small (exact search without forced exits), so
+    // their late waves keep the base reposition minimum
+    minRepos: [3, 4, 5, 5, 6][pos] + (set >= 2 ? 1 : 0) + (set === 5 ? 0 : Math.floor(bump / 2)),
     minSetup: [2, 2, 3, 3, 4][pos],
     maxLook: [0.45, 0.32, 0.22, 0.14, 0.08][pos] - set * 0.01,
     maxEager: [0.15, 0.1, 0.06, 0.04, 0.02][pos],
-    maxParFirst: [6, 6, 5, 5, 4][pos],
+    maxParFirst: [6, 6, 5, 5, 4][pos] + (set === 5 && wave > 0 ? 1 : 0),
     keyAt,
   };
 }
@@ -224,6 +226,15 @@ function newSpec(set: number, pos: number): SpecBody {
 
 const KEYS: Targets['keyAt'][] = ['early', 'any', 'late'];
 
+/**
+ * Hand overrides for slots whose derived spec proved infeasible (no candidate
+ * passed in 10 climbs). Only for unfrozen slots.
+ */
+const SPEC_OVERRIDES: Record<string, SpecBody> = {
+  // small pieces + walls + layers left its shifting gate decorative every time
+  'shift-20': { w: 6, h: 7, colors: 4, blocks: [8, 11], shapes: SHAPES_ALL, layered: [1, 2], shifting: [1, 2] },
+};
+
 export const SLOTS: Slot[] = SETS.flatMap((setDef, si) => {
   const set = si + 1;
   return Array.from({ length: setDef.size }, (_, k) => {
@@ -231,7 +242,7 @@ export const SLOTS: Slot[] = SETS.flatMap((setDef, si) => {
     const id = levelId(set, pos);
     const index = levelNumber(set, pos);
     const wave = Math.floor((pos - 1) / 5);
-    const body = pos <= 5 ? FIRST[si][pos - 1] : newSpec(set, pos);
+    const body = pos <= 5 ? FIRST[si][pos - 1] : (SPEC_OVERRIDES[levelId(set, pos)] ?? newSpec(set, pos));
     const keyAt = pos <= 5 ? (['early', 'any', 'late', 'any', 'late'] as const)[pos - 1] : KEYS[(pos + set) % 3];
     const heavy = set >= 5 || !!body.layered || !!body.shifting;
     return {

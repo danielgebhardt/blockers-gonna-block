@@ -128,14 +128,22 @@ export function button(
   // Phaser offsets a container's hit area by its display origin (half its size),
   // so the rectangle is given in top-left-based coordinates.
   c.setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains);
+  // a button fires only when pressed AND released on it (a block drag that
+  // ends over a button must not trigger it)
+  let pressed = false;
   c.on('pointerdown', () => {
     if (o.disabled) return;
     unlockAudio();
+    pressed = true;
     c.setScale(0.94);
   });
-  c.on('pointerout', () => c.setScale(1));
+  c.on('pointerout', () => {
+    pressed = false;
+    c.setScale(1);
+  });
   c.on('pointerup', () => {
-    if (o.disabled) return;
+    if (o.disabled || !pressed) return;
+    pressed = false;
     c.setScale(1);
     sfx.button();
     haptic.tick();

@@ -12,7 +12,7 @@ An original sliding-block puzzle for Android. Drag coloured blocks around a box 
 - Clear every block. There is no timer. Par is the shortest possible solution, proven by an exact solver.
 - Stars: 3 for at most par moves, 2 for par + 20% (at least +2), otherwise 1. Using undo costs a star, and so does using a hint (each counts once per attempt). You always get at least 1 star.
 
-160 levels in six sets. Each set opens once you've cleared 5 levels of the set before it; inside a set, levels open two ahead of the furthest one you've cleared. Later waves of each set mix in the obstacles from earlier sets.
+220 levels in eight sets. Each set opens once you've cleared 5 levels of the set before it; inside a set, levels open two ahead of the furthest one you've cleared. Later waves of each set mix in the obstacles from earlier sets.
 
 | Levels | Set | New obstacle |
 |---|---|---|
@@ -22,6 +22,8 @@ An original sliding-block puzzle for Android. Drag coloured blocks around a box 
 | 71–100  | Deep Freeze | frozen blocks: can't move until *n* other blocks have left |
 | 101–130 | Layers | leaving through the shell colour peels the shell; the core stays and needs its own gate |
 | 131–160 | Shifting Gates | gates change colour every time a block leaves |
+| 161–190 | Lock & Key | a padlocked gate stays shut until a block of the padlock's colour (its core colour) has left |
+| 191–220 | Pressure Plates | a barred gate opens only while *another* block stands on its plate (matching dots) |
 
 Levels have permanent ids (`stone-07`), so progress is saved per level and survives new levels being added.
 
@@ -50,7 +52,7 @@ For each of the 30 slots, the generator runs several simulated-annealing climbs 
 
 1. **Exact solve.** Par is the length of the shortest solution. We also measure how many moves are repositionings (not exits) and the longest run of setup moves before something can leave.
 2. **Random play.** Hundreds of simulated novices: purely random, "eager" (always takes an exit when it can), and "one-move lookahead". A level is kept only when these usually fail within 1.5 × par + 2 moves. The thresholds tighten through each set of 5.
-3. **Obstacle audit.** Each wall group, hole, one-way arrow, ice block, shell and shifting gate is neutralised in turn and the level re-solved. If par doesn't change, the obstacle is decoration. A shell must cost more than its own peel move. Decorative obstacles are stripped and the level re-evaluated from scratch; only levels whose remaining obstacles all matter (and that still contain their set's obstacle) can ship.
+3. **Obstacle audit.** Each wall group, hole, one-way arrow, ice block, shell, shifting gate, padlock and pressure plate is neutralised in turn and the level re-solved. If par doesn't change, the obstacle is decoration. A shell must cost more than its own peel move. Decorative obstacles are stripped and the level re-evaluated from scratch; only levels whose remaining obstacles all matter (and that still contain their set's obstacle) can ship.
 4. **Variety.** Upper caps on par and setup length keep levels hard rather than tedious. Selection also penalises repeating a neighbour's shape mix, board size, or where in the solution the key moment falls.
 
 Slot specs and targets live in `scripts/lib/slots.ts` (waves of five that ramp like the first release, with a small bump per wave). One exception: level 150 (`shift-20`) ships as a near miss of its own targets: 6 repositions where 7 were wanted, and a 4% lookahead-novice success rate against a 3% cap.

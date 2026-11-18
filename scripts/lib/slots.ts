@@ -253,6 +253,8 @@ const KEYS: Targets['keyAt'][] = ['early', 'any', 'late'];
 const SPEC_OVERRIDES: Record<string, SpecBody> = {
   // small pieces + walls + layers left its shifting gate decorative every time
   'shift-20': { w: 6, h: 7, colors: 4, blocks: [8, 11], shapes: SHAPES_ALL, layered: [1, 2], shifting: [1, 2] },
+  // its mixed-in shell was decoration in every climb; the plate and padlock both matter
+  'plates-25': { w: 6, h: 7, colors: 4, blocks: [8, 11], shapes: SHAPES_ALL, locks: [1, 1], plates: [1, 2] },
 };
 
 export const SLOTS: Slot[] = SETS.flatMap((setDef, si) => {

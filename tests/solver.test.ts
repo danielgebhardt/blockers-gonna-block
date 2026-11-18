@@ -32,6 +32,8 @@ const specs: Spec[] = [
   { index: 0, w: 4, h: 5, colors: 3, blocks: [5, 6], shapes: { domino: 3, V3: 1 }, walls: [1, 2], oneway: [1, 2] },
   { index: 0, w: 4, h: 4, colors: 3, blocks: [5, 6], shapes: { domino: 3, V3: 1 }, ice: [1, 2], layered: [1, 1] },
   { index: 0, w: 4, h: 4, colors: 3, blocks: [5, 6], shapes: { domino: 3, V3: 1 }, shifting: [1, 2], layered: [0, 1] },
+  { index: 0, w: 4, h: 4, colors: 3, blocks: [5, 6], shapes: { domino: 3, V3: 1 }, locks: [1, 2], layered: [0, 1] },
+  { index: 0, w: 4, h: 4, colors: 3, blocks: [4, 6], shapes: { mono: 1, domino: 3, V3: 1 }, plates: [1, 2] },
 ];
 
 describe('solver is exact', () => {
@@ -46,6 +48,7 @@ describe('solver is exact', () => {
         if (ref === undefined) continue; // state space too big for the reference
         const a = solve(c);
         const b = solve(c, undefined, { noPrune: true });
+        if (spec.locks) expect(c.hasLocks || !p.gates.some((g) => g.lock !== undefined)).toBe(true);
         expect(a.solvable).toBe(ref !== null);
         expect(b.solvable).toBe(ref !== null);
         if (ref !== null) {
@@ -56,7 +59,7 @@ describe('solver is exact', () => {
         }
       }
     }
-    expect(checked).toBeGreaterThan(40);
+    expect(checked).toBeGreaterThan(60);
   }, 120_000);
 });
 

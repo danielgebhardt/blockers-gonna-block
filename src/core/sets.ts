@@ -17,6 +17,8 @@ export const SETS: SetDef[] = [
   { key: 'ice', name: 'Deep Freeze', blurb: 'Ice that thaws', size: 30 },
   { key: 'layers', name: 'Layers', blurb: 'Shells and cores', size: 30 },
   { key: 'shift', name: 'Shifting Gates', blurb: 'Gates that change', size: 30 },
+  { key: 'locks', name: 'Lock & Key', blurb: 'Gates that need a key', size: 30 },
+  { key: 'plates', name: 'Pressure Plates', blurb: 'Hold the door', size: 30 },
 ];
 
 export const TOTAL_LEVELS = SETS.reduce((a, s) => a + s.size, 0);

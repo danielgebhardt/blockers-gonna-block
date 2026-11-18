@@ -6,6 +6,8 @@
  *  - one-way block          -> moves freely
  *  - frozen block           -> ice removed
  *  - shifting gate          -> stuck on its first colour
+ *  - padlock                -> removed
+ *  - pressure plate         -> removed (its gates always open)
  *  - layered block          -> replaced by a plain block of its core colour,
  *                              and (separately) of its shell colour
  *
@@ -20,7 +22,7 @@ import type { Puzzle } from './types';
 
 export interface Obstacle {
   name: string;
-  kind: 'wall' | 'axis' | 'ice' | 'layer' | 'shift';
+  kind: 'wall' | 'axis' | 'ice' | 'layer' | 'shift' | 'lock' | 'plate';
   variants: Puzzle[];
 }
 
@@ -90,6 +92,21 @@ export function listObstacles(p: Puzzle): Obstacle[] {
       v.gates[i].colors = [g.colors[0]];
       obs.push({ name: `shift#${i}`, kind: 'shift', variants: [v] });
     }
+    if (g.lock !== undefined) {
+      const v = clonePuzzle(p);
+      delete v.gates[i].lock;
+      obs.push({ name: `lock#${i}`, kind: 'lock', variants: [v] });
+    }
+  });
+  (p.plates ?? []).forEach((_, k) => {
+    const v = clonePuzzle(p);
+    for (const g of v.gates) {
+      if (g.plate === k) delete g.plate;
+      else if (g.plate !== undefined && g.plate > k) g.plate--;
+    }
+    v.plates = v.plates!.filter((_, j) => j !== k);
+    if (!v.plates.length) delete v.plates;
+    obs.push({ name: `plate#${k}`, kind: 'plate', variants: [v] });
   });
   return obs;
 }

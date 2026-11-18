@@ -14,6 +14,10 @@ import {
   randomGate,
   randomShape,
   shuffle,
+  addLock,
+  addPlate,
+  finalColors,
+  normalisePlatesLocks,
   staticOk,
 } from './construct';
 
@@ -247,8 +251,49 @@ const ops: [Op, number][] = [
       if (spec.ice && spec.ice[1] > 0) choices.push('ice');
       if (spec.layered && spec.layered[1] > 0) choices.push('layer');
       if (spec.shifting && spec.shifting[1] > 0) choices.push('shift');
+      if (spec.locks && spec.locks[1] > 0) choices.push('lock');
+      if (spec.plates && spec.plates[1] > 0) choices.push('plate');
       if (!choices.length) return null;
       const what = pick(rng, choices);
+      if (what === 'lock') {
+        const n = p.gates.filter((g) => g.lock !== undefined).length;
+        const g = pick(rng, p.gates);
+        if (g.lock !== undefined) {
+          if (rng() < 0.6) {
+            const keys = finalColors(p).filter((c) => c !== g.lock);
+            if (!keys.length) return null;
+            g.lock = pick(rng, keys);
+          } else if (n > spec.locks![0]) delete g.lock;
+          else return null;
+        } else {
+          if (n >= spec.locks![1] || !addLock(rng, p, g)) return null;
+        }
+        return normalisePlatesLocks(p);
+      }
+      if (what === 'plate') {
+        const n = p.plates?.length ?? 0;
+        const r = rng();
+        if (n < spec.plates![1] && (n === 0 || r < 0.25)) {
+          if (!addPlate(rng, p)) return null;
+        } else if (n && r < 0.6) {
+          // move a plate
+          const k = randInt(rng, 0, n - 1);
+          const x = randInt(rng, 0, p.w - 1);
+          const y = randInt(rng, 0, p.h - 1);
+          if (p.grid[y][x] !== '.' || p.plates!.some(([a, b]) => a === x && b === y)) return null;
+          p.plates![k] = [x, y];
+        } else if (n && r < 0.85) {
+          // re-link a gate to a plate (or unlink, keeping at least one link per plate)
+          const g = pick(rng, p.gates);
+          g.plate = randInt(rng, 0, n - 1);
+        } else if (n > spec.plates![0]) {
+          const k = randInt(rng, 0, n - 1);
+          for (const g of p.gates) if (g.plate === k) delete g.plate;
+        } else return null;
+        normalisePlatesLocks(p);
+        if ((p.plates?.length ?? 0) < spec.plates![0]) return null;
+        return p;
+      }
       const i = randInt(rng, 0, p.blocks.length - 1);
       const b = p.blocks[i];
       if (what === 'axis') {
@@ -366,5 +411,5 @@ export function pruneGates(p: Puzzle): Puzzle {
   const q = clone(p);
   const cols = new Set(q.blocks.flatMap((b) => b.colors));
   q.gates = q.gates.filter((g) => g.colors.length > 1 || cols.has(g.colors[0]));
-  return q;
+  return normalisePlatesLocks(q);
 }

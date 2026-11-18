@@ -65,6 +65,16 @@ const NAMES: Record<string, string[]> = {
     'Traffic Lights', 'Merry-Go-Round', 'Rotation', 'Sundial', 'Moon Phases', 'Prism', 'Chameleon',
     'Mood Ring', 'Ferris Wheel', 'Spin Cycle', 'Roulette', 'Weathervane', 'Hourglass', 'Orbit', 'Equinox',
     'Perpetual Motion', 'Full Circle', 'Encore'],
+  locks: ['Skeleton Key', 'Padlock', 'Deadbolt', 'Tumbler', 'Master Key',
+    'Latch', 'Keyring', 'Strongbox', 'Lockpick', 'Combination', 'Vault', 'Chain Lock', 'Key Cutter',
+    'Treasure Chest', 'Secret Door', 'Safe Cracker', 'Locksmith', 'Jailbreak', 'Bolt Cutter', 'Lock Box',
+    'Diary', 'Cipher', 'Spare Key', 'Escape Room', 'Key Card', 'Pass Code', 'Turnkey', 'Unlocked',
+    'Open Sesame', 'Key Master'],
+  plates: ['Hold the Door', 'Doorstop', 'Counterweight', 'Tripwire', 'Floor Switch',
+    'Seesaw', 'Lever', 'Relay', 'Booby Trap', 'Pressure Point', 'Doorman', 'Lookout', 'Footprint',
+    'Heavy Step', 'Weigh Station', 'Spring Loaded', 'Stand Guard', 'Sentry', 'Airlock', 'Elevator',
+    'Drawbridge', 'Floodgate', 'Sluice', 'Canal Lock', 'Toggle', 'Circuit', 'Dead Man’s Switch',
+    'Standby', 'Changing of the Guard', 'Last One Out'],
 };
 
 const TIPS: Record<string, string> = {
@@ -74,6 +84,8 @@ const TIPS: Record<string, string> = {
   ice: 'Frozen blocks can’t move. Every block that leaves the box chips the ice down by one. The number shows how many more exits it needs.',
   layers: 'Layered blocks: send one out through its outer colour and only the shell leaves. The core stays where it stopped and needs its own gate.',
   shift: 'Shifting gates change colour every time a block leaves. The dots show the order of colours.',
+  locks: 'A padlocked gate stays shut until a block of the padlock’s colour has left the box. Peeling a shell doesn’t count: the key is a block’s core colour.',
+  plates: 'A barred gate opens only while another block is parked on its pressure plate (the dots match). The block going out can’t hold the door for itself.',
 };
 
 const SHAPES_ALL = { mono: 1, domino: 3, I3: 2, V3: 2, O4: 1.2, L4: 1.2, T4: 1, S4: 0.6, I4: 0.4 };
@@ -96,11 +108,11 @@ function targets(pos: number, set: number, keyAt: Targets['keyAt'], wave = 0): T
     maxSetup: [4, 5, 6, 7, 8][pos] + Math.floor(bump / 2),
     // shifting-gate boards stay small (exact search without forced exits), so
     // their late waves keep the base reposition minimum
-    minRepos: [3, 4, 5, 5, 6][pos] + (set >= 2 ? 1 : 0) + (set === 5 ? 0 : Math.floor(bump / 2)),
+    minRepos: [3, 4, 5, 5, 6][pos] + (set >= 2 ? 1 : 0) + (set === 5 || set === 7 ? 0 : Math.floor(bump / 2)),
     minSetup: [2, 2, 3, 3, 4][pos],
-    maxLook: [0.45, 0.32, 0.22, 0.14, 0.08][pos] - set * 0.01,
+    maxLook: [0.45, 0.32, 0.22, 0.14, 0.08][pos] - Math.min(set, 5) * 0.01,
     maxEager: [0.15, 0.1, 0.06, 0.04, 0.02][pos],
-    maxParFirst: [6, 6, 5, 5, 4][pos] + (set === 5 && wave > 0 ? 1 : 0),
+    maxParFirst: [6, 6, 5, 5, 4][pos] + ((set === 5 || set === 7) && wave > 0 ? 1 : 0),
     keyAt,
   };
 }
@@ -161,6 +173,8 @@ const SIZES: [number, number][][] = [
   [[5, 7], [6, 6], [6, 7], [6, 8], [7, 7], [7, 8]],
   [[5, 7], [6, 6], [6, 7], [6, 8]], // layers: big boards came out too easy
   [[5, 6], [5, 7], [6, 6], [6, 7]], // shifting: keep the exact search tractable
+  [[5, 7], [6, 6], [6, 7], [6, 8], [7, 7]], // locks: monotone, search stays fast
+  [[5, 6], [5, 7], [6, 6], [6, 7]], // plates: no forced exits, like shifting
 ];
 
 /** The obstacle each set introduces, as a spec fragment. */
@@ -181,13 +195,18 @@ function ownObstacle(set: number, wave: number, rng: () => number): Partial<Spec
       return { layered: [1 + (w >> 2), 3] };
     case 6:
       return { shifting: [1, 2] };
+    case 7:
+      return { locks: [1 + (w >> 2), 2 + (w >> 1)] };
+    case 8:
+      return { plates: [1, 1 + (w >> 2)] };
   }
   return {};
 }
 
 /** Earlier sets' obstacles mixed in (each must still matter: the audit checks). */
 function mixes(set: number, wave: number, rng: () => number): Partial<SpecBody> {
-  const pool = [2, 3, 4, 5].filter((s) => s < set);
+  // shifting gates (6) are never mixed in: they make the exact search too slow
+  const pool = [2, 3, 4, 5, 7].filter((s) => s < set);
   if (!pool.length || wave === 0) return {};
   const chance = [0, 0.45, 0.65, 0.75, 0.85, 0.9][Math.min(wave, 5)];
   let n = rng() < chance ? 1 : 0;
@@ -198,6 +217,7 @@ function mixes(set: number, wave: number, rng: () => number): Partial<SpecBody> 
     if (s === 3) out.oneway = [1, 2];
     if (s === 4) out.ice = [1, 2];
     if (s === 5) out.layered = [1, 2];
+    if (s === 7) out.locks = [1, 1];
   }
   return out;
 }
@@ -211,8 +231,8 @@ function newSpec(set: number, pos: number): SpecBody {
   const k = Math.min(sizes.length - 1, Math.max(0, Math.round((p / 4) * (sizes.length - 1) + (rng() - 0.5) * 2)));
   const [w, h] = sizes[k];
   const area = w * h;
-  const lo = Math.round(area / (set === 6 ? 5.2 : 4.6));
-  const colors = Math.min(set === 5 || set === 6 ? 4 : 5, 3 + (area >= 36 ? 1 : 0) + (area >= 49 ? 1 : 0));
+  const lo = Math.round(area / (set === 6 || set === 8 ? 5.2 : 4.6));
+  const colors = Math.min(set >= 5 ? 4 : 5, 3 + (area >= 36 ? 1 : 0) + (area >= 49 ? 1 : 0));
   return {
     w,
     h,
@@ -242,9 +262,11 @@ export const SLOTS: Slot[] = SETS.flatMap((setDef, si) => {
     const id = levelId(set, pos);
     const index = levelNumber(set, pos);
     const wave = Math.floor((pos - 1) / 5);
-    const body = pos <= 5 ? FIRST[si][pos - 1] : (SPEC_OVERRIDES[levelId(set, pos)] ?? newSpec(set, pos));
-    const keyAt = pos <= 5 ? (['early', 'any', 'late', 'any', 'late'] as const)[pos - 1] : KEYS[(pos + set) % 3];
-    const heavy = set >= 5 || !!body.layered || !!body.shifting;
+    const body =
+      pos <= 5 && si < FIRST.length ? FIRST[si][pos - 1] : (SPEC_OVERRIDES[levelId(set, pos)] ?? newSpec(set, pos));
+    const keyAt =
+      pos <= 5 && si < FIRST.length ? (['early', 'any', 'late', 'any', 'late'] as const)[pos - 1] : KEYS[(pos + set) % 3];
+    const heavy = set >= 5 || !!body.layered || !!body.shifting || !!body.plates;
     return {
       id,
       index,
@@ -255,7 +277,7 @@ export const SLOTS: Slot[] = SETS.flatMap((setDef, si) => {
       spec: { index, ...body },
       targets: targets((pos - 1) % 5, si, keyAt, wave),
       climbs: 4,
-      iters: set === 6 ? 300 : heavy ? 380 : 450,
+      iters: set === 6 || set === 8 ? 300 : heavy ? 380 : 450,
     };
   });
 });

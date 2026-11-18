@@ -207,7 +207,15 @@ function drawIce(g: G, b: BlockLook, cs: number) {
 }
 
 /** Board floor, walls and frame (static layer), in board-local coordinates. */
-export function drawBoard(g: G, w: number, h: number, grid: string[], cs: number, frame: number) {
+export function drawBoard(
+  g: G,
+  w: number,
+  h: number,
+  grid: string[],
+  cs: number,
+  frame: number,
+  plates: [number, number][] = [],
+) {
   g.clear();
   const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && grid[y][x] !== ' ';
   // frame: union of expanded non-void cells
@@ -260,6 +268,7 @@ export function drawBoard(g: G, w: number, h: number, grid: string[], cs: number
       g.lineBetween(x0 + cs * 0.2, y0 + cs * 0.48, x0 + cs * 0.8, y0 + cs * 0.48);
       g.lineBetween(x0 + cs * 0.5, y0 + cs * 0.12, x0 + cs * 0.5, y0 + cs * 0.48);
     }
+  plates.forEach(([x, y], k) => drawPlate(g, x, y, k, cs));
 }
 
 export interface GateLook {
@@ -268,6 +277,60 @@ export interface GateLook {
   len: number;
   colors: number[];
   current: number;
+  /** Padlock colour, and whether it is still locked. */
+  lock?: number;
+  locked?: boolean;
+  /** Pressure plate index, and whether the gate is barred right now. */
+  plate?: number;
+  barred?: boolean;
+}
+
+/** A padlock in a block colour (with its glyph), centred at (cx, cy), height ~s. */
+export function drawPadlock(g: G, cx: number, cy: number, s: number, color: number, open = false) {
+  const col = COLORS[color];
+  const bw = s * 0.72;
+  const bh = s * 0.56;
+  const by = cy - bh * 0.15;
+  // shackle
+  g.lineStyle(Math.max(2, s * 0.13), 0x2a2d3e, 1);
+  g.beginPath();
+  g.arc(cx, by, bw * 0.3, Math.PI, 0);
+  g.strokePath();
+  g.lineStyle(Math.max(1.5, s * 0.08), 0xd9dcef, 1);
+  g.beginPath();
+  if (open) g.arc(cx + bw * 0.12, by - s * 0.14, bw * 0.3, Math.PI * 1.1, -0.2);
+  else g.arc(cx, by, bw * 0.3, Math.PI, 0);
+  g.strokePath();
+  // body
+  g.fillStyle(0x000000, 0.35);
+  g.fillRoundedRect(cx - bw / 2, by + s * 0.04, bw, bh, s * 0.12);
+  g.fillStyle(col.dark, 1);
+  g.fillRoundedRect(cx - bw / 2, by, bw, bh, s * 0.12);
+  g.fillStyle(col.base, 1);
+  g.fillRoundedRect(cx - bw / 2 + s * 0.05, by + s * 0.04, bw - s * 0.1, bh - s * 0.1, s * 0.09);
+  drawGlyph(g, col.glyph, cx, by + bh * 0.46, s * 0.14, col.dark, 0.95);
+}
+
+/** k+1 small dots in a row (pressure plate / barred gate link marker). */
+export function drawPlateDots(g: G, cx: number, cy: number, k: number, r: number, color = 0x1d2033) {
+  const n = k + 1;
+  g.fillStyle(color, 1);
+  for (let i = 0; i < n; i++) g.fillCircle(cx + (i - (n - 1) / 2) * r * 2.6, cy, r);
+}
+
+/** A pressure plate on the floor (board-local coordinates). */
+export function drawPlate(g: G, x: number, y: number, k: number, cs: number) {
+  const cx = (x + 0.5) * cs;
+  const cy = (y + 0.5) * cs;
+  g.fillStyle(0x000000, 0.18);
+  g.fillCircle(cx, cy + cs * 0.03, cs * 0.36);
+  g.fillStyle(0x8c90a8, 1);
+  g.fillCircle(cx, cy, cs * 0.35);
+  g.fillStyle(0xb9bdd2, 1);
+  g.fillCircle(cx, cy - cs * 0.02, cs * 0.3);
+  g.fillStyle(0xa3a7bf, 1);
+  g.fillCircle(cx, cy, cs * 0.26);
+  drawPlateDots(g, cx, cy, k, cs * 0.045);
 }
 
 /** Draw one gate (board-local coordinates). Shifting gates show their colour cycle. */
@@ -340,6 +403,46 @@ export function drawGate(g: G, gt: GateLook, w: number, h: number, cs: number, f
   if (gt.len >= 2) for (const [px, py] of ends) drawGlyph(g, col.glyph, px, py, gr, col.dark, 0.9);
   const mx = x + gw / 2;
   const my = y + gh / 2;
+  // padlock: darkened gate with a padlock in the key colour
+  if (gt.lock !== undefined) {
+    if (gt.locked) {
+      g.fillStyle(UI.frameDark, 0.62);
+      g.fillRoundedRect(x, y, gw, gh, radii);
+    }
+    const ls = Math.min(cs * 0.5, (horiz ? gh : gw) * 1.05);
+    const lx = horiz ? x + gw / 2 : x + gw / 2;
+    const ly = horiz ? y + gh / 2 : y + gh / 2;
+    drawPadlock(g, lx, ly, ls, gt.lock, !gt.locked);
+  }
+  // pressure plate: portcullis bars while nobody holds the plate, and the plate's dots
+  if (gt.plate !== undefined) {
+    if (gt.barred) {
+      const n = Math.max(2, gt.len * 2);
+      for (let i = 0; i < n; i++) {
+        const t = (i + 0.5) / n;
+        g.fillStyle(0x2a2d3e, 1);
+        if (horiz) g.fillRect(x + gw * t - cs * 0.045, y, cs * 0.09, gh);
+        else g.fillRect(x, y + gh * t - cs * 0.045, gw, cs * 0.09);
+        g.fillStyle(0xb9bdd2, 1);
+        if (horiz) g.fillRect(x + gw * t - cs * 0.025, y, cs * 0.05, gh);
+        else g.fillRect(x, y + gh * t - cs * 0.025, gw, cs * 0.05);
+      }
+    }
+    // dots outside the frame so they read against the dark background
+    const out = depth + cs * 0.16;
+    const mxx = x + gw / 2;
+    const myy = y + gh / 2;
+    let px: number, py: number;
+    if (gt.side === 'N') [px, py] = [mxx, -out];
+    else if (gt.side === 'S') [px, py] = [mxx, h * cs + out];
+    else if (gt.side === 'W') [px, py] = [-out, myy];
+    else [px, py] = [w * cs + out, myy];
+    const pr = cs * 0.05;
+    const n = gt.plate + 1;
+    g.fillStyle(0x000000, 0.35);
+    g.fillRoundedRect(px - pr * (1.6 + 1.3 * (n - 1)), py - pr * 1.6, pr * (3.2 + 2.6 * (n - 1)), pr * 3.2, pr * 1.6);
+    drawPlateDots(g, px, py, gt.plate, pr, 0xd9dcef);
+  }
   // cycle indicator for shifting gates: dots beyond the frame
   if (gt.colors.length > 1) {
     const n = gt.colors.length;

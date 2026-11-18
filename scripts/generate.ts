@@ -90,6 +90,8 @@ export function violations(slot: Slot, c: Candidate): string[] {
   if (need(ob.blocks.filter((b) => b.ice).length, slot.spec.ice)) v.push('missing ice');
   if (need(ob.blocks.filter((b) => b.colors.length > 1).length, slot.spec.layered)) v.push('missing layers');
   if (need(ob.gates.filter((g) => g.colors.length > 1).length, slot.spec.shifting)) v.push('missing shifting');
+  if (need(ob.gates.filter((g) => g.lock !== undefined).length, slot.spec.locks)) v.push('missing locks');
+  if (need(ob.plates?.length ?? 0, slot.spec.plates)) v.push('missing plates');
   const walls = ob.grid.join('').split('#').length - 1;
   const voids = ob.grid.join('').split(' ').length - 1;
   if (need(walls, slot.spec.walls) || need(voids, slot.spec.voids)) v.push('missing walls/voids');
@@ -147,6 +149,7 @@ function toLevel(slot: Slot, c: Candidate): LevelDef {
     grid: c.puzzle.grid,
     blocks: c.puzzle.blocks,
     gates: c.puzzle.gates,
+    ...(c.puzzle.plates?.length ? { plates: c.puzzle.plates } : {}),
     par: e.par,
     solution: e.moves,
     stats: {

@@ -23,6 +23,10 @@ export interface Spec {
   ice?: [number, number];
   layered?: [number, number];
   shifting?: [number, number];
+  /** Padlocked gates. */
+  locks?: [number, number];
+  /** Pressure plates (each linked to at least one gate). */
+  plates?: [number, number];
   /** Extra gates beyond one per colour. */
   extraGates?: [number, number];
   maxGateLen?: number;
@@ -276,6 +280,7 @@ export function construct(rng: Rng, spec: Spec, sparse = false): Puzzle {
     }
     if (p.blocks.length < (sparse ? 4 : spec.blocks[0])) continue;
     decorate(rng, p, spec, colors);
+    normalisePlatesLocks(p);
     if (!staticOk(p)) continue;
     try {
       compile(p);
@@ -317,6 +322,67 @@ export function decorate(rng: Rng, p: Puzzle, spec: Spec, colors: number[]) {
       if (!staticOk(p)) b.colors = [b.colors[1]];
     }
   }
+  if (spec.locks) {
+    const n = randInt(rng, ...spec.locks);
+    for (const g of shuffle(rng, p.gates.slice()).slice(0, n)) addLock(rng, p, g);
+  }
+  if (spec.plates) {
+    const n = randInt(rng, ...spec.plates);
+    for (let k = 0; k < n; k++) addPlate(rng, p);
+  }
+}
+
+/** Final colours of the blocks (what can open a padlock). */
+export const finalColors = (p: Puzzle) => [...new Set(p.blocks.map((b) => b.colors[b.colors.length - 1]))];
+
+/** Put a padlock on gate g, keyed to some block's final colour (preferably not the gate's own). */
+export function addLock(rng: Rng, p: Puzzle, g: GateDef): boolean {
+  const keys = finalColors(p);
+  const other = keys.filter((c) => !g.colors.includes(c));
+  const pool = other.length ? other : keys;
+  if (!pool.length) return false;
+  g.lock = pick(rng, pool);
+  return true;
+}
+
+/** Add a pressure plate on a random floor cell and bar a random gate with it. */
+export function addPlate(rng: Rng, p: Puzzle): boolean {
+  const free = p.gates.filter((g) => g.plate === undefined);
+  if (!free.length) return false;
+  const cells: [number, number][] = [];
+  const taken = new Set((p.plates ?? []).map(([x, y]) => `${x},${y}`));
+  for (let y = 0; y < p.h; y++)
+    for (let x = 0; x < p.w; x++) if (p.grid[y][x] === '.' && !taken.has(`${x},${y}`)) cells.push([x, y]);
+  if (!cells.length) return false;
+  p.plates = [...(p.plates ?? []), pick(rng, cells)];
+  pick(rng, free).plate = p.plates.length - 1;
+  return true;
+}
+
+/**
+ * Keep locks and plates consistent: drop padlocks no block can open, drop
+ * plates no gate uses (re-indexing the rest), drop plates on non-floor cells.
+ */
+export function normalisePlatesLocks(p: Puzzle): Puzzle {
+  const keys = new Set(finalColors(p));
+  for (const g of p.gates) if (g.lock !== undefined && !keys.has(g.lock)) delete g.lock;
+  if (p.plates) {
+    const keep: number[] = [];
+    p.plates.forEach(([x, y], k) => {
+      const used = p.gates.some((g) => g.plate === k);
+      if (used && p.grid[y]?.[x] === '.') keep.push(k);
+    });
+    const remap = new Map(keep.map((k, i) => [k, i]));
+    for (const g of p.gates) {
+      if (g.plate === undefined) continue;
+      const nk = remap.get(g.plate);
+      if (nk === undefined) delete g.plate;
+      else g.plate = nk;
+    }
+    p.plates = keep.map((k) => p.plates![k]);
+    if (!p.plates.length) delete p.plates;
+  }
+  return p;
 }
 
 export { FAMILIES };

@@ -122,6 +122,15 @@ export const sfx = {
     tone(330, 0.18, { to: 495, vol: 0.08, type: 'square', attack: 0.03 });
     tone(495, 0.18, { to: 660, vol: 0.06, type: 'sine', delay: 0.08 });
   },
+  unlock() {
+    tone(1047, 0.08, { vol: 0.12, type: 'square' });
+    tone(1568, 0.25, { vol: 0.12, type: 'triangle', delay: 0.06 });
+    noise(0.06, { type: 'highpass', freq: 4000, vol: 0.1 });
+  },
+  plate(open: boolean) {
+    tone(open ? 220 : 180, 0.12, { to: open ? 330 : 120, vol: 0.18, type: 'square', attack: 0.01 });
+    noise(0.08, { type: 'lowpass', freq: 900, vol: 0.12 });
+  },
   undo() {
     tone(480, 0.09, { to: 300, vol: 0.14, type: 'triangle' });
   },

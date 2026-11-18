@@ -158,3 +158,65 @@ describe('engine basics', () => {
     expect(isWon(replay(c, r.moves))).toBe(true);
   });
 });
+
+describe('padlocks and pressure plates', () => {
+  const ONE1: [number, number][] = [[0, 0]];
+  it('a padlocked gate opens once a block of the key colour has left', () => {
+    // red must leave west first; then blue's east gate (locked red) opens
+    const c = compile({
+      w: 3,
+      h: 1,
+      grid: ['...'],
+      blocks: [
+        { cells: ONE1, x: 0, y: 0, colors: [0] },
+        { cells: ONE1, x: 2, y: 0, colors: [1] },
+      ],
+      gates: [
+        { side: 'W', start: 0, len: 1, colors: [0] },
+        { side: 'E', start: 0, len: 1, colors: [1], lock: 0 },
+      ],
+    });
+    const s = initialState(c);
+    expect(legalMoves(c, s).filter((m) => m.g >= 0).map((m) => m.b)).toEqual([0]);
+    expect(solve(c).moves.map((m) => m.b)).toEqual([0, 1]);
+  });
+
+  it('a peeled shell does not count as the key; only the final colour does', () => {
+    const c = compile({
+      w: 3,
+      h: 1,
+      grid: ['...'],
+      blocks: [{ cells: ONE1, x: 1, y: 0, colors: [0, 1] }],
+      gates: [
+        { side: 'W', start: 0, len: 1, colors: [0] },
+        { side: 'E', start: 0, len: 1, colors: [1], lock: 0 },
+      ],
+    });
+    expect(solve(c).solvable).toBe(false);
+  });
+
+  it('a barred gate opens only while ANOTHER block stands on its plate', () => {
+    const base: Puzzle = {
+      w: 3,
+      h: 2,
+      grid: ['...', '...'],
+      blocks: [
+        { cells: ONE1, x: 0, y: 0, colors: [0] },
+        { cells: ONE1, x: 2, y: 1, colors: [1] },
+      ],
+      gates: [
+        { side: 'E', start: 0, len: 1, colors: [0], plate: 0 },
+        { side: 'W', start: 1, len: 1, colors: [1] },
+      ],
+      plates: [[1, 1]],
+    };
+    const c = compile(base);
+    // red alone can't hold its own door; blue must stand on the plate first
+    const r = solve(c);
+    expect(r.moves.length).toBe(3);
+    expect(r.moves[0]).toEqual({ b: 1, x: 1, y: 1 });
+    // a block on the plate that is itself leaving doesn't hold the door
+    const self = compile({ ...base, blocks: [{ cells: ONE1, x: 1, y: 1, colors: [0] }], gates: [{ side: 'E', start: 1, len: 1, colors: [0], plate: 0 }] });
+    expect(solve(self).solvable).toBe(false);
+  });
+});

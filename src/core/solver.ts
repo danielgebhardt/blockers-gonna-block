@@ -14,7 +14,9 @@
  *  1. When gates never change colour, taking a block off the board can only
  *     help (it frees cells and melts ice sooner), so if any block can leave
  *     right now, leaving is an optimal next move and the other successors are
- *     skipped. Disabled with shifting gates, where exit order changes colours.
+ *     skipped. Padlocks only ever open, so they keep this safe. Disabled with
+ *     shifting gates (exit order changes colours) and pressure plates (a block
+ *     leaving a plate can close a door).
  *     Peels are never forced: the core stays behind and may get in the way.
  *  2. A block that was just repositioned is not moved again: whatever it could
  *     reach next it could have reached in the previous drag (nothing else
@@ -203,7 +205,7 @@ function stateFromCodes(codes: Int16Array, off: number, B: number, s: State) {
 
 export function solve(c: Compiled, from?: State, opts: SolveOptions = {}): SolveResult {
   const maxNodes = opts.maxNodes ?? 2_000_000;
-  const prune = !opts.noPrune && !c.shifting;
+  const prune = !opts.noPrune && !c.nonMonotone;
   const B = c.blocks.length;
   if (B > 31) throw new Error('too many blocks');
   const z = zobrist(c);

@@ -8,7 +8,15 @@ export function levelHash(l: Puzzle & Partial<Pick<LevelDef, 'par'>>): string {
     h: l.h,
     grid: l.grid,
     blocks: l.blocks.map((b) => ({ cells: b.cells, x: b.x, y: b.y, colors: b.colors, axis: b.axis ?? null, ice: b.ice ?? 0 })),
-    gates: l.gates.map((g) => ({ side: g.side, start: g.start, len: g.len, colors: g.colors })),
+    gates: l.gates.map((g) => ({
+      side: g.side,
+      start: g.start,
+      len: g.len,
+      colors: g.colors,
+      ...(g.lock !== undefined ? { lock: g.lock } : {}),
+      ...(g.plate !== undefined ? { plate: g.plate } : {}),
+    })),
+    ...(l.plates?.length ? { plates: l.plates } : {}),
     par: l.par ?? null,
   };
   const s = JSON.stringify(core);

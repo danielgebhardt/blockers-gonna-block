@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { SETS, levelId, levelNumber } from '../../core/sets';
-import { drawBlock, drawIcon, drawStar } from '../draw';
+import { drawBlock, drawIcon, drawPadlock, drawPlate, drawStar } from '../draw';
 import { levelById } from '../levels';
 import { COLORS, UI } from '../palette';
 import { SET_GATE, clearedCount, isSetOpen, isUnlocked, save, setStars, totalStars } from '../save';
@@ -16,6 +16,14 @@ function emblem(g: Phaser.GameObjects.Graphics, set: number, cs: number) {
     { cells: [[0, 0]] as [number, number][], colors: [4, 5], layer: 0, ice: 0, seed: 5 },
     { cells: [[0, 0]] as [number, number][], colors: [5], layer: 0, ice: 0, seed: 6 },
   ];
+  if (set === 7) {
+    drawPadlock(g, cs * 0.5, cs * 0.55, cs * 1.05, 4);
+    return;
+  }
+  if (set === 8) {
+    drawPlate(g, 0, 0, 0, cs * 1.1);
+    return;
+  }
   drawBlock(g, looks[set - 1], cs);
 }
 

@@ -39,6 +39,16 @@ export interface GateDef {
    * not count as leaving).
    */
   colors: number[];
+  /**
+   * Padlock: the gate stays shut until a block whose final (core) colour is
+   * this colour has left the board.
+   */
+  lock?: number;
+  /**
+   * Pressure plate (index into Puzzle.plates): the gate is barred unless some
+   * other block (not the one going out) is standing on that plate.
+   */
+  plate?: number;
 }
 
 /**
@@ -52,6 +62,8 @@ export interface Puzzle {
   grid: string[];
   blocks: BlockDef[];
   gates: GateDef[];
+  /** Pressure plate cells (floor cells), referenced by GateDef.plate. */
+  plates?: [number, number][];
 }
 
 /**

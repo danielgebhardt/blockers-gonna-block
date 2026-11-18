@@ -9,13 +9,14 @@ import {
   gateColor,
   iceLeft,
   isFinalLayer,
+  keyUsed,
   reachable,
   stateKey,
 } from '../../core/engine';
 import { Session, starsFor } from '../../core/session';
 import type { LevelDef, Side } from '../../core/types';
 import { sfx, unlockAudio } from '../audio';
-import { centreCell, drawBlock, drawBoard, drawGate, drawStar, fillUnion } from '../draw';
+import { centreCell, drawBlock, drawBoard, drawGate, drawPadlock, drawPlate, drawStar, fillUnion } from '../draw';
 import { solveFrom } from '../hints';
 import { LEVELS, levelById, levelByIndex, nextLevel } from '../levels';
 import { COLORS, UI } from '../palette';
@@ -152,7 +153,7 @@ export class PlayScene extends Phaser.Scene {
     // board
     const bg = this.add.graphics();
     bg.setPosition(this.ox, this.oy);
-    drawBoard(bg, lvl.w, lvl.h, lvl.grid, cs, this.frame);
+    drawBoard(bg, lvl.w, lvl.h, lvl.grid, cs, this.frame, lvl.plates ?? []);
     this.gatesG = this.add.graphics().setPosition(this.ox, this.oy);
     this.hintG = this.add.graphics().setPosition(this.ox, this.oy).setDepth(30);
     this.drawGates();
@@ -226,13 +227,42 @@ export class PlayScene extends Phaser.Scene {
     } else if (v.ice) v.ice.setVisible(false);
   }
 
-  private drawGates(glowGate = -1) {
+  /** Locked / barred state of every gate, for change detection. */
+  private gateStates(): string {
+    const c = this.session.c;
     const s = this.session.state;
+    fillOccupancy(c, s);
+    return this.level.gates
+      .map((_, gi) => {
+        const locked = c.gateLock[gi] >= 0 && !keyUsed(c, s, c.gateLock[gi]);
+        const barred = c.gatePlate[gi] >= 0 && c.occ[c.gatePlate[gi]] === 0;
+        return `${locked ? 'L' : '-'}${barred ? 'B' : '-'}`;
+      })
+      .join('');
+  }
+
+  private lastGates = '';
+
+  private drawGates(glowGate = -1, sound = false) {
+    const s = this.session.state;
+    const st = this.gateStates();
+    if (sound && this.lastGates && st !== this.lastGates) {
+      for (let i = 0; i < st.length; i += 2) {
+        if (this.lastGates[i] === 'L' && st[i] === '-') sfx.unlock();
+        if (this.lastGates[i + 1] !== st[i + 1]) sfx.plate(st[i + 1] === '-');
+      }
+    }
+    this.lastGates = st;
     this.gatesG.clear();
     this.level.gates.forEach((g, gi) => {
       drawGate(
         this.gatesG,
-        { ...g, current: s.exits % g.colors.length },
+        {
+          ...g,
+          current: s.exits % g.colors.length,
+          locked: st[gi * 2] === 'L',
+          barred: st[gi * 2 + 1] === 'B',
+        },
         this.level.w,
         this.level.h,
         this.cs,
@@ -504,8 +534,8 @@ export class PlayScene extends Phaser.Scene {
       if (this.level.gates.some((g) => g.colors.length > 1)) {
         sfx.gateShift();
       }
-      this.drawGates();
     }
+    this.drawGates(-1, true);
     this.updateHud();
     if (this.session.won) {
       this.win();
@@ -607,14 +637,14 @@ export class PlayScene extends Phaser.Scene {
   }
 
   /**
-   * Dead ends only exist with shifting gates: otherwise every reposition can
-   * be walked back, exits only free space and melt ice, and a peel's landing
-   * spot is reachable from where the block started, so a solvable level stays
-   * solvable whatever you do. No need to spend battery checking.
+   * Dead ends only exist with shifting gates or pressure plates: otherwise
+   * every reposition can be walked back, exits only free space, melt ice and
+   * open padlocks, and a peel's landing spot is reachable from where the block
+   * started, so a solvable level stays solvable whatever you do.
    */
   private async checkStuck() {
     const token = ++this.stuckToken;
-    if (!this.session.c.shifting) return;
+    if (!this.session.c.nonMonotone) return;
     const res = await this.solveCurrent();
     if (token !== this.stuckToken || this.session.won) return;
     if (res === null) {
@@ -811,11 +841,16 @@ export class PlayScene extends Phaser.Scene {
       { cells: [[0, 0]] as [number, number][], colors: [5] },
     ];
     const d = demos[this.level.set - 1];
-    drawBlock(ex, { cells: d.cells, colors: d.colors, layer: 0, axis: d.axis, ice: d.ice ?? 0, seed: 3 }, demoCs);
-    const dw = (Math.max(...d.cells.map((c) => c[0])) + 1) * demoCs;
+    let dw = demoCs;
+    if (this.level.set === 7) drawPadlock(ex, demoCs / 2, demoCs / 2, demoCs, 4);
+    else if (this.level.set === 8) drawPlate(ex, 0, 0, 0, demoCs);
+    else {
+      drawBlock(ex, { cells: d.cells, colors: d.colors, layer: 0, axis: d.axis, ice: d.ice ?? 0, seed: 3 }, demoCs);
+      dw = (Math.max(...d.cells.map((c) => c[0])) + 1) * demoCs;
+    }
     ex.setPosition(-dw / 2, -h / 2 + 62 * u);
     p.add(ex);
-    if (d.ice) p.add(text(this, 0, -h / 2 + 62 * u + demoCs / 2, String(d.ice), demoCs * 0.42, 0x1d4f7a));
+    if (d?.ice) p.add(text(this, 0, -h / 2 + 62 * u + demoCs / 2, String(d.ice), demoCs * 0.42, 0x1d4f7a));
     p.add(text(this, 0, -h / 2 + 120 * u, tipText, 16 * u, UI.text, { wrap: w - 48 * u, bold: false, origin: [0.5, 0] }));
     p.add(
       button(this, 0, h / 2 - 40 * u, 160 * u, 50 * u, { label: 'Got it', fill: 0x2f9e6b, fillLight: 0x46c48a }, () => {

@@ -59,6 +59,20 @@ export interface Compiled {
   blocks: CBlock[];
   gates: GateDef[];
   shifting: boolean;
+  /** Per gate: padlock colour, or -1. */
+  gateLock: Int8Array;
+  /** Per gate: cell index of its pressure plate, or -1. */
+  gatePlate: Int16Array;
+  /** Final (core) colour of each block, for padlocks. */
+  finalColor: Int8Array;
+  hasLocks: boolean;
+  hasPlates: boolean;
+  /**
+   * Whether taking a block off the board can ever hurt (shifting gates change
+   * colour; leaving a plate can close a door). Disables the solver's
+   * forced-exit pruning and enables the in-game dead-end check.
+   */
+  nonMonotone: boolean;
   layered: boolean;
   /** Symmetry group per block: identical blocks share a group id. */
   group: Int16Array;
@@ -211,6 +225,20 @@ export function compile(p: Puzzle): Compiled {
     blocks,
     gates: p.gates,
     shifting: p.gates.some((g) => g.colors.length > 1),
+    gateLock: Int8Array.from(p.gates.map((g) => (g.lock === undefined ? -1 : g.lock))),
+    gatePlate: Int16Array.from(
+      p.gates.map((g) => {
+        if (g.plate === undefined) return -1;
+        const pl = p.plates?.[g.plate];
+        if (!pl) throw new Error('gate refers to a missing plate');
+        if (blocked[pl[1] * w + pl[0]]) throw new Error('plate on a wall');
+        return pl[1] * w + pl[0];
+      }),
+    ),
+    finalColor: Int8Array.from(blocks.map((b) => b.colors[b.colors.length - 1])),
+    hasLocks: p.gates.some((g) => g.lock !== undefined),
+    hasPlates: p.gates.some((g) => g.plate !== undefined),
+    nonMonotone: p.gates.some((g) => g.colors.length > 1 || g.plate !== undefined),
     layered: blocks.some((b) => b.colors.length > 1),
     group,
     hasSymmetry,
@@ -316,6 +344,27 @@ export function reachable(c: Compiled, s: State, i: number): Int16Array {
 }
 
 /** Exit gate usable by block i from anchor a right now, or -1. Needs c.occ. */
+/** Has a block of this final colour left the board (padlock open)? */
+export function keyUsed(c: Compiled, s: State, color: number): boolean {
+  for (let i = 0; i < c.blocks.length; i++) if (s.pos[i] < 0 && c.finalColor[i] === color) return true;
+  return false;
+}
+
+/**
+ * Is gate g open for block `mover` (padlock and pressure plate)? Needs c.occ.
+ * Pass mover = -1 to ask whether anything at all holds the plate (display).
+ */
+export function gateOpen(c: Compiled, s: State, g: number, mover: number): boolean {
+  const lock = c.gateLock[g];
+  if (lock >= 0 && !keyUsed(c, s, lock)) return false;
+  const plate = c.gatePlate[g];
+  if (plate >= 0) {
+    const v = c.occ[plate];
+    if (v === 0 || v === mover + 1) return false;
+  }
+  return true;
+}
+
 export function exitFrom(c: Compiled, s: State, i: number, a: number): number {
   const opts = c.blocks[i].exitsAt[a];
   if (!opts) return -1;
@@ -323,6 +372,7 @@ export function exitFrom(c: Compiled, s: State, i: number, a: number): number {
   const me = i + 1;
   for (const o of opts) {
     if (gateColor(c, s, o.gate) !== col) continue;
+    if (!gateOpen(c, s, o.gate, i)) continue;
     let clear = true;
     for (let k = 0; k < o.sweep.length; k++) {
       const v = c.occ[o.sweep[k]];
@@ -413,6 +463,7 @@ export function checkMove(c: Compiled, s: State, m: IMove): string | null {
   if (!opts || !opts.some((o) => o.gate === m.g)) return 'cannot exit through that gate from there';
   const o = opts.find((o) => o.gate === m.g)!;
   if (gateColor(c, s, m.g) !== blockColor(c, s, m.b)) return 'gate colour does not match';
+  if (!gateOpen(c, s, m.g, m.b)) return 'gate is locked or barred';
   for (const ci of o.sweep) if (c.occ[ci] !== 0 && c.occ[ci] !== m.b + 1) return 'exit path blocked';
   return null;
 }
@@ -512,8 +563,9 @@ export function dragPath(c: Compiled, s: State, i: number, to: number): number[]
 
 /**
  * Relaxed clearability: can every block leave using exits only, if gates
- * accepted any colour of their cycle at any time and a block counted as gone
- * as soon as it could leave/peel? This over-approximates what exit-only play
+ * accepted any colour of their cycle at any time, pressure plates were always
+ * held, and a block counted as gone (and opened padlocks) as soon as it could
+ * leave/peel? This over-approximates what exit-only play
  * can achieve, so `false` proves at least one reposition is still needed.
  * Leaves c.occ in an undefined state.
  */
@@ -536,6 +588,9 @@ export function relaxedClear(c: Compiled, s: State): boolean {
         if (!opts) continue;
         for (const o of opts) {
           if (!c.gates[o.gate].colors.includes(col)) continue;
+          // padlocks: open once a key block is (relaxed-)gone; plates: assumed held
+          const lock = c.gateLock[o.gate];
+          if (lock >= 0 && !keyUsed(c, t, lock)) continue;
           let clear = true;
           for (let q = 0; q < o.sweep.length; q++) {
             const v = c.occ[o.sweep[q]];

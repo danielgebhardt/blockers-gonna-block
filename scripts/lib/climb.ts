@@ -21,6 +21,8 @@ export function obstacleCounts(p: Puzzle) {
     ice: p.blocks.filter((b) => b.ice).length,
     layered: p.blocks.filter((b) => b.colors.length > 1).length,
     shifting: p.gates.filter((g) => g.colors.length > 1).length,
+    locks: p.gates.filter((g) => g.lock !== undefined).length,
+    plates: p.plates?.length ?? 0,
   };
 }
 
@@ -40,6 +42,8 @@ export function specShortfall(p: Puzzle, spec: Spec): number {
   s += need(c.ice, spec.ice) * 3;
   s += need(c.layered, spec.layered) * 3;
   s += need(c.shifting, spec.shifting) * 3;
+  s += need(c.locks, spec.locks) * 3;
+  s += need(c.plates, spec.plates) * 3;
   return s;
 }
 

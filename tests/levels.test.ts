@@ -27,8 +27,11 @@ describe('level set', () => {
       expect(l.pos).toBeLessThanOrEqual(SETS[l.set - 1].size);
       expect(!!l.tip, `${l.id} tip`).toBe(l.pos === 1);
     }
-    // every set's first five (the first release) are always there
-    for (let s = 1; s <= SETS.length; s++) for (let p = 1; p <= 5; p++) expect(ids.has(levelId(s, p))).toBe(true);
+    // sets ship whole: any set with levels has all of them, and the first six sets are always there
+    for (let s = 1; s <= SETS.length; s++) {
+      const n = levels.filter((l) => l.set === s).length;
+      if (s <= 6 || n > 0) expect(n, `set ${s} incomplete`).toBe(SETS[s - 1].size);
+    }
   });
 
   it('frozen levels are unchanged', () => {

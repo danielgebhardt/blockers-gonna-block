@@ -406,7 +406,8 @@ export function drawGate(g: G, gt: GateLook, w: number, h: number, cs: number, f
   // padlock: darkened gate with a padlock in the key colour
   if (gt.lock !== undefined) {
     if (gt.locked) {
-      g.fillStyle(UI.frameDark, 0.62);
+      // dim, but keep the gate's colour readable: you plan around it
+      g.fillStyle(UI.frameDark, 0.38);
       g.fillRoundedRect(x, y, gw, gh, radii);
     }
     const ls = Math.min(cs * 0.5, (horiz ? gh : gw) * 1.05);

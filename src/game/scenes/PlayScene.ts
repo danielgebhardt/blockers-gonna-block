@@ -16,7 +16,7 @@ import {
 import { Session, starsFor } from '../../core/session';
 import type { LevelDef, Side } from '../../core/types';
 import { sfx, unlockAudio } from '../audio';
-import { centreCell, drawBlock, drawBoard, drawGate, drawPadlock, drawPlate, drawStar, fillUnion } from '../draw';
+import { centreCell, drawBlock, drawBoard, drawGate, drawPadlock, drawPlate, drawPlateRing, drawStar, fillUnion } from '../draw';
 import { solveFrom } from '../hints';
 import { LEVELS, levelById, levelByIndex, nextLevel } from '../levels';
 import { COLORS, UI } from '../palette';
@@ -156,6 +156,11 @@ export class PlayScene extends Phaser.Scene {
     drawBoard(bg, lvl.w, lvl.h, lvl.grid, cs, this.frame, lvl.plates ?? []);
     this.gatesG = this.add.graphics().setPosition(this.ox, this.oy);
     this.hintG = this.add.graphics().setPosition(this.ox, this.oy).setDepth(30);
+    // plate rings above resting blocks (depth 10), below a dragged block (20)
+    if (lvl.plates?.length) {
+      const pg = this.add.graphics().setPosition(this.ox, this.oy).setDepth(12);
+      lvl.plates.forEach(([x, y], k) => drawPlateRing(pg, x, y, k, cs));
+    }
     this.drawGates();
 
     // blocks

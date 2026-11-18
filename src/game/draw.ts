@@ -318,6 +318,22 @@ export function drawPlateDots(g: G, cx: number, cy: number, k: number, r: number
   for (let i = 0; i < n; i++) g.fillCircle(cx + (i - (n - 1) / 2) * r * 2.6, cy, r);
 }
 
+/**
+ * Plate marker drawn ABOVE the blocks: a steel ring with the plate's dots, so
+ * a plate under a block (holding its door) is still visible.
+ */
+export function drawPlateRing(g: G, x: number, y: number, k: number, cs: number) {
+  const cx = (x + 0.5) * cs;
+  const cy = (y + 0.5) * cs;
+  g.lineStyle(Math.max(2, cs * 0.06), 0x1d2033, 0.55);
+  g.strokeCircle(cx, cy + cs * 0.015, cs * 0.31);
+  g.lineStyle(Math.max(1.5, cs * 0.045), 0xd9dcef, 0.95);
+  g.strokeCircle(cx, cy, cs * 0.31);
+  g.fillStyle(0xd9dcef, 0.95);
+  g.fillRoundedRect(cx - cs * (0.08 + 0.06 * k), cy - cs * 0.07, cs * (0.16 + 0.12 * k), cs * 0.14, cs * 0.07);
+  drawPlateDots(g, cx, cy, k, cs * 0.04);
+}
+
 /** A pressure plate on the floor (board-local coordinates). */
 export function drawPlate(g: G, x: number, y: number, k: number, cs: number) {
   const cx = (x + 0.5) * cs;
@@ -438,7 +454,7 @@ export function drawGate(g: G, gt: GateLook, w: number, h: number, cs: number, f
     else if (gt.side === 'S') [px, py] = [mxx, h * cs + out];
     else if (gt.side === 'W') [px, py] = [-out, myy];
     else [px, py] = [w * cs + out, myy];
-    const pr = cs * 0.05;
+    const pr = cs * 0.07;
     const n = gt.plate + 1;
     g.fillStyle(0x000000, 0.35);
     g.fillRoundedRect(px - pr * (1.6 + 1.3 * (n - 1)), py - pr * 1.6, pr * (3.2 + 2.6 * (n - 1)), pr * 3.2, pr * 1.6);

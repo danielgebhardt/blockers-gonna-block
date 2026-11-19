@@ -9,24 +9,35 @@ export const isNative = () => Capacitor.isNativePlatform();
 let hapticsOn = true;
 export const setHaptics = (on: boolean) => (hapticsOn = on);
 
+/** Browsers: the Vibration API (Android Chrome has it; iOS Safari doesn't). */
+const buzz = (pattern: number | number[]) => {
+  if (hapticsOn && 'vibrate' in navigator) navigator.vibrate(pattern);
+};
+
 export const haptic = {
   light() {
-    if (hapticsOn && isNative()) Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+    if (!isNative()) return buzz(8);
+    if (hapticsOn) Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
   },
   medium() {
-    if (hapticsOn && isNative()) Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+    if (!isNative()) return buzz(15);
+    if (hapticsOn) Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
   },
   heavy() {
-    if (hapticsOn && isNative()) Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
+    if (!isNative()) return buzz(25);
+    if (hapticsOn) Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
   },
   tick() {
-    if (hapticsOn && isNative()) Haptics.selectionChanged().catch(() => {});
+    if (!isNative()) return buzz(4);
+    if (hapticsOn) Haptics.selectionChanged().catch(() => {});
   },
   success() {
-    if (hapticsOn && isNative()) Haptics.notification({ type: NotificationType.Success }).catch(() => {});
+    if (!isNative()) return buzz([15, 60, 15]);
+    if (hapticsOn) Haptics.notification({ type: NotificationType.Success }).catch(() => {});
   },
   warn() {
-    if (hapticsOn && isNative()) Haptics.notification({ type: NotificationType.Warning }).catch(() => {});
+    if (!isNative()) return buzz([30, 60, 30]);
+    if (hapticsOn) Haptics.notification({ type: NotificationType.Warning }).catch(() => {});
   },
 };
 

@@ -1,4 +1,4 @@
-name: Build APK + IPA
+name: Build APK + IPA + web app
 
 on:
   push:
@@ -32,6 +32,12 @@ jobs:
 
       - name: Build web app
         run: npm run build
+
+      # The same build is the installable web app (GitHub Pages), see the pages job.
+      - uses: actions/upload-pages-artifact@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          path: dist
 
       # Everything below only on main: that's what produces the installable APK.
       - uses: actions/setup-java@v4
@@ -69,6 +75,7 @@ jobs:
             --notes "Debug build ${GITHUB_RUN_NUMBER} from ${GITHUB_SHA::7}. Install over the previous build to keep your progress.
 
           Android: https://github.com/${GITHUB_REPOSITORY}/releases/download/latest/blockers-gonna-block.apk
+          Web app (iPhone/iPad: open in Safari, Share, Add to Home Screen): https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/
           iOS (unsigned, for sideloading; attached a few minutes later): https://github.com/${GITHUB_REPOSITORY}/releases/download/latest/blockers-gonna-block.ipa"
 
       - uses: actions/upload-artifact@v4
@@ -76,6 +83,24 @@ jobs:
         with:
           name: blockers-gonna-block-${{ github.run_number }}
           path: blockers-gonna-block.apk
+
+  # Web app on GitHub Pages: iPhone/iPad "Add to Home Screen", no signing or expiry.
+  pages:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - id: deploy
+        uses: actions/deploy-pages@v4
 
   # Unsigned iOS build, for sideloading with a free Apple ID (AltStore / SideStore
   # re-sign it on install). Built on every push as a check; published from main.

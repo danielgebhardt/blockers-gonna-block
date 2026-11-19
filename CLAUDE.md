@@ -5,6 +5,7 @@ An original Android sliding-block puzzle game.
 - Repo: https://github.com/danielgebhardt/blockers-gonna-block
 - Work branch: `claude/amazing-cannon-rjyfd9` (kept equal to `main` when shipped).
 - Latest APK (rebuilt by CI on every push to main): https://github.com/danielgebhardt/blockers-gonna-block/releases/download/latest/blockers-gonna-block.apk
+- Web app (GitHub Pages, deployed by CI from main; the recommended way onto iPhone/iPad, via Add to Home Screen): https://danielgebhardt.github.io/blockers-gonna-block/
 - Latest unsigned iOS build (same release, sideloaded with a free Apple ID; see README): https://github.com/danielgebhardt/blockers-gonna-block/releases/download/latest/blockers-gonna-block.ipa
 
 Read `README.md` for the rules, layout and level pipeline.
@@ -15,7 +16,8 @@ Read `README.md` for the rules, layout and level pipeline.
 - No image or audio files committed. Everything is drawn with Phaser Graphics (`src/game/draw.ts`), and sounds are synthesised with WebAudio (`src/game/audio.ts`).
 - Renders at devicePixelRatio, portrait only, and respects safe-area insets.
 - App id `com.danielgebhardt.blockersgonnablock`. The debug keystore is committed (`android/keystore`). `versionCode` comes from `GITHUB_RUN_NUMBER`.
-- CI (`.github/workflows/android.yml`): every push runs the tests and the web build, then an unsigned `.ipa` build on `macos-26`. Pushes to main also build the APK, republish the `latest` pre-release, and attach the `.ipa` to it.
+- CI (`.github/workflows/android.yml`): every push runs the tests and the web build, then an unsigned `.ipa` build on `macos-26`. Pushes to main also build the APK, republish the `latest` pre-release, attach the `.ipa` to it, and deploy `dist/` to GitHub Pages.
+- Web app: `scripts/lib/webapp.ts` (Vite plugin) emits the manifest, icons and `sw.js` into every build. `src/main.ts` registers the service worker only in production browser builds (never native). It's network-first for page loads and cache-first for hashed assets. Saves use localStorage via the Preferences web fallback. Haptics fall back to `navigator.vibrate` (Android only).
 - Commit work to the branch. Fast-forward main (`git push origin claude/amazing-cannon-rjyfd9:main`) only when all tests pass; the user has authorised pushing main this way.
 - Don't open PRs unless asked.
 

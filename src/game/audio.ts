@@ -26,7 +26,8 @@ export function unlockAudio() {
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   }
-  if (ctx.state === 'suspended') void ctx.resume();
+  // iOS also uses a non-standard 'interrupted' state (calls, backgrounding)
+  if (ctx.state !== 'running') void ctx.resume();
 }
 
 function ready(): AudioContext | null {

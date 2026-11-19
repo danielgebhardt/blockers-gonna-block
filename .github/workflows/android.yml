@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK + IPA
 
 on:
   push:
@@ -68,10 +68,56 @@ jobs:
             --title "Latest build (#${GITHUB_RUN_NUMBER})" \
             --notes "Debug build ${GITHUB_RUN_NUMBER} from ${GITHUB_SHA::7}. Install over the previous build to keep your progress.
 
-          Direct download: https://github.com/${GITHUB_REPOSITORY}/releases/download/latest/blockers-gonna-block.apk"
+          Android: https://github.com/${GITHUB_REPOSITORY}/releases/download/latest/blockers-gonna-block.apk
+          iOS (unsigned, for sideloading; attached a few minutes later): https://github.com/${GITHUB_REPOSITORY}/releases/download/latest/blockers-gonna-block.ipa"
 
       - uses: actions/upload-artifact@v4
         if: github.ref == 'refs/heads/main'
         with:
           name: blockers-gonna-block-${{ github.run_number }}
           path: blockers-gonna-block.apk
+
+  # Unsigned iOS build, for sideloading with a free Apple ID (AltStore / SideStore
+  # re-sign it on install). Built on every push as a check; published from main.
+  ios:
+    needs: build
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Web build, icons, Capacitor sync
+        run: npm run ios
+
+      - name: Build unsigned .ipa
+        working-directory: ios/App
+        run: |
+          xcodebuild -version
+          xcodebuild -project App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            -quiet build
+          rm -rf Payload && mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qry ../../blockers-gonna-block.ipa Payload
+          ls -l ../../blockers-gonna-block.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blockers-gonna-block-ios-${{ github.run_number }}
+          path: blockers-gonna-block.ipa
+
+      - name: Attach .ipa to the "latest" pre-release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload latest blockers-gonna-block.ipa --clobber --repo "$GITHUB_REPOSITORY"

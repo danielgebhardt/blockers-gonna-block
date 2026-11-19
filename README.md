@@ -1,9 +1,12 @@
 # Blockers Gonna Block
 
-An original sliding-block puzzle for Android. Drag coloured blocks around a box and push each one out through a gate of its own colour. The gate has to be wide enough. The puzzle is the order: the blocks are in each other's way.
+An original sliding-block puzzle for Android and iOS. Drag coloured blocks around a box and push each one out through a gate of its own colour. The gate has to be wide enough. The puzzle is the order: the blocks are in each other's way.
 
 **Latest APK:** https://github.com/danielgebhardt/blockers-gonna-block/releases/download/latest/blockers-gonna-block.apk
 (every push to `main` rebuilds it; it installs over the previous build and keeps your progress)
+
+**Latest iOS build (unsigned, for sideloading):** https://github.com/danielgebhardt/blockers-gonna-block/releases/download/latest/blockers-gonna-block.ipa
+(see [Install on iPhone / iPad](#install-on-iphone--ipad); not on the App Store)
 
 ## Rules
 
@@ -42,6 +45,7 @@ scripts/       level generator (tsx), icon generator, freeze tool
 tests/         Vitest: rules, solver vs. brute force, every shipped level
 e2e/           Playwright: plays levels on a Pixel 7 viewport with real touch drags
 android/       Capacitor Android project (committed debug keystore)
+ios/           Capacitor iOS project (Swift Package Manager; icon PNGs are generated, not committed)
 ```
 
 ## How levels are made
@@ -70,3 +74,38 @@ npm run build && npx cap sync android && (cd android && ./gradlew assembleDebug)
 ```
 
 CI (`.github/workflows/android.yml`) runs the tests and the web build on every push. On `main` it also builds the APK and republishes the `latest` pre-release. `versionCode` comes from `GITHUB_RUN_NUMBER`.
+
+A second job builds an unsigned `.ipa` on a macOS runner after every push (as a check). On `main` it attaches the `.ipa` to the same `latest` pre-release a few minutes after the APK. The iOS build number is also `GITHUB_RUN_NUMBER`.
+
+## Install on iPhone / iPad
+
+Without a paid Apple Developer account, iOS apps are signed with a free Apple ID. That signature lasts **7 days**: after that the app won't open until it is refreshed or reinstalled. Your progress is kept either way, as long as you don't delete the app. A free Apple ID can have at most 3 sideloaded apps on a device at once.
+
+### Option A: Xcode on a Mac (simplest for your own device)
+
+1. Install Xcode from the Mac App Store and Node 22.
+2. Build and open the project:
+   ```bash
+   git clone https://github.com/danielgebhardt/blockers-gonna-block.git
+   cd blockers-gonna-block
+   npm ci
+   npm run ios        # web build + icons + cap sync ios
+   npm run ios:open   # opens ios/App in Xcode
+   ```
+3. In Xcode: **Settings → Accounts**, add your Apple ID. Then select the **App** target → **Signing & Capabilities** → Team: *(your name) (Personal Team)*. If Xcode says the bundle identifier is unavailable, add a suffix to it (e.g. `.family`).
+4. Connect the iPhone/iPad by cable, tap **Trust** on the device, pick it as the run destination at the top of Xcode and press **Run** (▶).
+5. The first time, the device asks you to turn on **Developer Mode** (Settings → Privacy & Security → Developer Mode, then restart). Then allow the app under Settings → General → **VPN & Device Management** → your Apple ID → Trust.
+
+To refresh after 7 days (or to update to a newer build), `git pull`, `npm run ios`, and press Run again.
+
+### Option B: AltStore with the CI build (better for family devices)
+
+[AltStore](https://altstore.io) re-signs the `.ipa` from the releases page with your Apple ID and refreshes it automatically.
+
+1. Install **AltServer** on the Mac and use it to install **AltStore** on each device (by cable, signing in with an Apple ID). Follow AltStore's own setup guide; it also covers Developer Mode.
+2. On the device, open the `.ipa` link above in Safari, then share the downloaded file to AltStore (or in AltStore: **My Apps → +** and pick the file).
+3. AltStore refreshes the app in the background while the device is on the same Wi-Fi as the Mac with AltServer running. If it lapses, open AltStore and tap **Refresh All**.
+
+To update, install the new `.ipa` the same way: it replaces the old one and keeps your progress.
+
+[SideStore](https://sidestore.io) is an AltStore fork that can refresh on the device without the Mac after the first setup.

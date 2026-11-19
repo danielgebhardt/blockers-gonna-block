@@ -1,14 +1,16 @@
 {
   "name": "blockers-gonna-block",
   "version": "1.0.0",
-  "description": "Blockers Gonna Block — a sliding colour-block puzzle for Android",
+  "description": "Blockers Gonna Block — a sliding colour-block puzzle for Android and iOS",
   "scripts": {
     "dev": "vite --host",
     "build": "tsc --noEmit -p . && vite build",
     "test": "vitest run",
     "gen": "tsx scripts/generate.ts",
     "e2e": "tsx e2e/play.ts",
-    "cap:sync": "cap sync android"
+    "cap:sync": "cap sync android",
+    "ios": "npm run build && tsx scripts/icon.ts && cap sync ios",
+    "ios:open": "cap open ios"
   },
   "repository": {
     "type": "git",
@@ -30,6 +32,7 @@
   "devDependencies": {
     "@capacitor/android": "^8.6.2",
     "@capacitor/cli": "^8.6.2",
+    "@capacitor/ios": "^8.6.2",
     "@types/node": "^26.6.6",
     "playwright": "^1.65.1",
     "tsx": "^4.23.15",

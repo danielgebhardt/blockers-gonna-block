@@ -8,6 +8,12 @@ const config: CapacitorConfig = {
   android: {
     backgroundColor: '#14172b',
   },
+  ios: {
+    backgroundColor: '#14172b',
+    // the game never scrolls: no rubber-band bounce when dragging blocks
+    scrollEnabled: false,
+    contentInset: 'never',
+  },
   plugins: {
     SystemBars: {
       insetsHandling: 'css',

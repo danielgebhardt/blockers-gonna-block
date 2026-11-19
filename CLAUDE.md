@@ -5,15 +5,17 @@ An original Android sliding-block puzzle game.
 - Repo: https://github.com/danielgebhardt/blockers-gonna-block
 - Work branch: `claude/amazing-cannon-rjyfd9` (kept equal to `main` when shipped).
 - Latest APK (rebuilt by CI on every push to main): https://github.com/danielgebhardt/blockers-gonna-block/releases/download/latest/blockers-gonna-block.apk
+- Latest unsigned iOS build (same release, sideloaded with a free Apple ID; see README): https://github.com/danielgebhardt/blockers-gonna-block/releases/download/latest/blockers-gonna-block.ipa
 
 Read `README.md` for the rules, layout and level pipeline.
 
 ## Stack / workflow (keep exactly)
-- TypeScript, Phaser 4 and Vite, wrapped with Capacitor 8 for Android (`@capacitor/preferences`, `haptics`, `status-bar`). Vitest for tests; scripts run with `tsx`.
-- No image or audio files. Everything is drawn with Phaser Graphics (`src/game/draw.ts`), and sounds are synthesised with WebAudio (`src/game/audio.ts`).
+- TypeScript, Phaser 4 and Vite, wrapped with Capacitor 8 for Android and iOS (`@capacitor/preferences`, `haptics`, `status-bar`). Vitest for tests; scripts run with `tsx`.
+- iOS (`ios/`, Swift Package Manager) is for sideloading only, no App Store. `npm run ios` = web build + `scripts/icon.ts` + `cap sync ios`. The iOS icon/splash PNGs are rasterised by `scripts/icon.ts` from the same shapes as the Android vectors and are gitignored.
+- No image or audio files committed. Everything is drawn with Phaser Graphics (`src/game/draw.ts`), and sounds are synthesised with WebAudio (`src/game/audio.ts`).
 - Renders at devicePixelRatio, portrait only, and respects safe-area insets.
 - App id `com.danielgebhardt.blockersgonnablock`. The debug keystore is committed (`android/keystore`). `versionCode` comes from `GITHUB_RUN_NUMBER`.
-- CI (`.github/workflows/android.yml`): every push runs the tests and the web build. Pushes to main also build the APK and republish the `latest` pre-release.
+- CI (`.github/workflows/android.yml`): every push runs the tests and the web build, then an unsigned `.ipa` build on `macos-26`. Pushes to main also build the APK, republish the `latest` pre-release, and attach the `.ipa` to it.
 - Commit work to the branch. Fast-forward main (`git push origin claude/amazing-cannon-rjyfd9:main`) only when all tests pass; the user has authorised pushing main this way.
 - Don't open PRs unless asked.
 
@@ -72,7 +74,7 @@ The cloud container restarts every 1–2 hours. Candidates persist in `scripts/o
 - All 220 levels are generated, frozen and shipped, and 905 tests pass.
 - Level 150 (`shift-20`) ships as a documented near miss of its targets.
 - The generator doesn't target dead-end "traps", so the Shifting Gates and Pressure Plates sets test move order more than traps. Adding a trap target is a possible next improvement.
-- All testing has been in Chromium at Pixel 7 size. The user plays on a real phone and gives feedback.
+- All automated testing has been in Chromium at Pixel 7 size. The iOS build is only compile-checked in CI; it's tested on the user's devices. The user plays on a real phone and gives feedback.
 
 ## Rules for future work
 - **Never change a frozen level.** Names and tips may change, since they aren't hashed.

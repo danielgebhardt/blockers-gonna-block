@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { setSound } from './game/audio';
+import { initDebug } from './game/debug';
 import { initStatusBar, isNative } from './game/platform';
 import { loadSave } from './game/save';
 import { LevelSelectScene } from './game/scenes/LevelSelectScene';
@@ -62,6 +63,8 @@ async function boot() {
   };
   setInterval(watch, 500);
   watch();
+
+  initDebug(game);
 
   // test/debug hook (used by the Playwright suite)
   (window as unknown as { __bgb: unknown }).__bgb = { game };

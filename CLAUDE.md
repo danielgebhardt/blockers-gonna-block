@@ -55,6 +55,7 @@ Read `README.md` for the rules, layout and level pipeline.
   - `MenuScene`
   - `LevelSelectScene`: set overview plus a per-set grid.
   - `PlayScene`: drag input, hints via a solver worker, the stuck warning, and plate rings drawn above blocks.
+- `src/game/debug.ts`: on-device diagnostics panel (DOM, not Phaser): loop, tweens, dragged block, page events, captured errors. Open with `?debug` or 5 quick taps in the top-left corner below the status bar; tap the panel to close; never persisted. It found the iOS `navigator.vibrate` bug.
 - `scripts/generate.ts` takes `--only '<id regex>' --climbs N --resume --select-only`. Helpers live in `scripts/lib/{slots,construct,mutate,climb,evaluate,finish,worker}.ts`.
   - `finish.ts` strips decorative obstacles and re-evaluates the level.
   - `slots.ts` has `SPEC_OVERRIDES` for `shift-20` and `plates-25`.

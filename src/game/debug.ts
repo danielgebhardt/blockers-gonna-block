@@ -3,13 +3,15 @@
  * keeps updating even if the canvas stops repainting) showing the game loop,
  * tweens, the dragged block, input and any errors.
  *
- * Turn on: open the page with ?debug, or tap the top-left corner 5 times quickly
- * (works in the Home Screen app, where there is no address bar). The choice is
- * remembered; tap 5 times again to turn it off.
+ * Turn on: open the page with ?debug, or tap the top-left corner (just below the
+ * status bar) 5 times quickly, which works in the Home Screen app where there is
+ * no address bar. Tap the panel to close it. It is never remembered: the next
+ * launch starts without it.
  */
 import type Phaser from 'phaser';
 
-const KEY = 'bgb-debug';
+// Older builds remembered the panel in localStorage under this key; clear it.
+const OLD_KEY = 'bgb-debug';
 const errors: string[] = [];
 
 function record(msg: string) {
@@ -34,24 +36,6 @@ for (const ev of ['touchstart', 'touchmove', 'touchend', 'touchcancel', 'pointer
 let panel: HTMLPreElement | null = null;
 let timer = 0;
 
-const on = () => {
-  try {
-    return localStorage.getItem(KEY) === '1';
-  } catch {
-    return false;
-  }
-};
-
-function setOn(v: boolean, game: Phaser.Game) {
-  try {
-    localStorage.setItem(KEY, v ? '1' : '0');
-  } catch {
-    /* ignore */
-  }
-  if (v) show(game);
-  else hide();
-}
-
 function hide() {
   clearInterval(timer);
   panel?.remove();
@@ -66,7 +50,17 @@ function show(game: Phaser.Game) {
   panel.style.cssText =
     'position:fixed;left:4px;right:4px;bottom:calc(4px + env(safe-area-inset-bottom,0px));z-index:9;margin:0;padding:6px;' +
     'font:10px/1.3 ui-monospace,Menlo,monospace;color:#cfe;background:rgba(0,0,0,.72);border-radius:6px;' +
-    'pointer-events:none;white-space:pre-wrap;word-break:break-all;max-height:42vh;overflow:hidden';
+    'pointer-events:auto;white-space:pre-wrap;word-break:break-all;max-height:42vh;overflow:hidden';
+  panel.title = 'Tap to close';
+  // tap the panel to close it (and don't let the tap reach the game)
+  const close = (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+    hide();
+  };
+  panel.addEventListener('touchend', close);
+  panel.addEventListener('click', close);
+  for (const ev of ['touchstart', 'touchmove', 'pointerdown', 'mousedown']) panel.addEventListener(ev, (e) => e.stopPropagation());
   document.body.appendChild(panel);
   let lastFrame = 0;
   let lastT = performance.now();
@@ -127,21 +121,26 @@ function show(game: Phaser.Game) {
 
 export function initDebug(game: Phaser.Game) {
   game.events.on('relayout', () => bump('RELAYOUT'));
-  if (new URLSearchParams(location.search).has('debug')) setOn(true, game);
-  else if (on()) show(game);
-  // 5 quick taps in the top-left corner toggle the panel
+  try {
+    localStorage.removeItem(OLD_KEY);
+  } catch {
+    /* ignore */
+  }
+  if (new URLSearchParams(location.search).has('debug')) show(game);
+  // 5 quick taps in the top-left corner (below the status bar) open the panel
   let taps: number[] = [];
   window.addEventListener(
     'touchend',
     (e) => {
       const t = e.changedTouches[0];
-      if (!t || t.clientX > 60 || t.clientY > 90) return;
+      if (!t || t.clientX > 110 || t.clientY > 160) return;
       const now = performance.now();
       taps = taps.filter((x) => now - x < 2000);
       taps.push(now);
       if (taps.length >= 5) {
         taps = [];
-        setOn(!panel, game);
+        if (panel) hide();
+        else show(game);
       }
     },
     { passive: true },

@@ -9,9 +9,19 @@ export const isNative = () => Capacitor.isNativePlatform();
 let hapticsOn = true;
 export const setHaptics = (on: boolean) => (hapticsOn = on);
 
-/** Browsers: the Vibration API (Android Chrome has it; iOS Safari doesn't). */
+/**
+ * Browsers: the Vibration API (Android Chrome has it; iOS doesn't). iOS Home
+ * Screen web apps report `'vibrate' in navigator` but leave it undefined, so
+ * check that it's callable, and never let a haptic failure break gameplay
+ * (haptics are called in the middle of drag handling).
+ */
 const buzz = (pattern: number | number[]) => {
-  if (hapticsOn && 'vibrate' in navigator) navigator.vibrate(pattern);
+  if (!hapticsOn || typeof navigator.vibrate !== 'function') return;
+  try {
+    navigator.vibrate(pattern);
+  } catch {
+    /* not critical */
+  }
 };
 
 export const haptic = {

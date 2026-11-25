@@ -17,7 +17,7 @@ Read `README.md` for the rules, layout and level pipeline.
 - Renders at devicePixelRatio, portrait only, and respects safe-area insets.
 - App id `com.danielgebhardt.blockersgonnablock`. The debug keystore is committed (`android/keystore`). `versionCode` comes from `GITHUB_RUN_NUMBER`.
 - CI (`.github/workflows/android.yml`): every push runs the tests and the web build, then an unsigned `.ipa` build on `macos-26`. Pushes to main also build the APK, republish the `latest` pre-release, attach the `.ipa` to it, and deploy `dist/` to GitHub Pages.
-- Web app: `scripts/lib/webapp.ts` (Vite plugin) emits the manifest, icons and `sw.js` into every build. `src/main.ts` registers the service worker only in production browser builds (never native). It's network-first for page loads and cache-first for hashed assets. Saves use localStorage via the Preferences web fallback. Haptics fall back to `navigator.vibrate` (Android only).
+- Web app: `scripts/lib/webapp.ts` (Vite plugin) emits the manifest, icons and `sw.js` into every build. `src/main.ts` registers the service worker only in production browser builds (never native). It's network-first for page loads and cache-first for hashed assets. Saves use localStorage via the Preferences web fallback. Haptics fall back to `navigator.vibrate` (Android only). iOS Home Screen web apps report `vibrate` in navigator but leave it undefined; calling it threw mid-drag and froze block animations, so `buzz()` checks it is a function and swallows errors (tests/platform.test.ts).
 - Commit work to the branch. Fast-forward main (`git push origin claude/amazing-cannon-rjyfd9:main`) only when all tests pass; the user has authorised pushing main this way.
 - Don't open PRs unless asked.
 
